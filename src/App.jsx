@@ -27,13 +27,47 @@ const App = () => {
   const [isDrafterOpen, setIsDrafterOpen] = useState(false);
   const [activeCard, setActiveCard] = useState(null);
   
+  // Validation Config: Define columns and their specific input types
   const LINK_CONFIG = {
-    'NACH SIP': ['Fund Name', 'SIP Amount', 'SIP Date', 'Start Date', 'Folio Number'],
-    'Online SIP': ['Fund Name', 'SIP Amount', 'SIP Date', 'Start Date', 'Folio Number'],
-    'NACH Purchase': ['Fund Name', 'Amount', 'Folio Number'],
-    'Online Purchase': ['Fund Name', 'Amount', 'Folio Number'],
-    'STP': ['Source Fund', 'Target Fund', 'Amount', 'Frequency', 'Duration', 'Total Amt', 'Folio'],
-    'Switch': ['Source Fund', 'Target Fund', 'Amount/Units', 'Folio Number']
+    'NACH SIP': [
+        { name: 'Fund Name', type: 'text' }, 
+        { name: 'SIP Amount', type: 'number' }, 
+        { name: 'SIP Date', type: 'date' }, 
+        { name: 'Start Date', type: 'date' }, 
+        { name: 'Folio Number', type: 'text' }
+    ],
+    'Online SIP': [
+        { name: 'Fund Name', type: 'text' }, 
+        { name: 'SIP Amount', type: 'number' }, 
+        { name: 'SIP Date', type: 'date' }, 
+        { name: 'Start Date', type: 'date' }, 
+        { name: 'Folio Number', type: 'text' }
+    ],
+    'NACH Purchase': [
+        { name: 'Fund Name', type: 'text' }, 
+        { name: 'Amount', type: 'number' }, 
+        { name: 'Folio Number', type: 'text' }
+    ],
+    'Online Purchase': [
+        { name: 'Fund Name', type: 'text' }, 
+        { name: 'Amount', type: 'number' }, 
+        { name: 'Folio Number', type: 'text' }
+    ],
+    'STP': [
+        { name: 'Source Fund', type: 'text' }, 
+        { name: 'Target Fund', type: 'text' }, 
+        { name: 'Amount', type: 'number' }, 
+        { name: 'Frequency', type: 'text' }, 
+        { name: 'Duration', type: 'text' }, 
+        { name: 'Total Amt', type: 'number' }, 
+        { name: 'Folio', type: 'text' }
+    ],
+    'Switch': [
+        { name: 'Source Fund', type: 'text' }, 
+        { name: 'Target Fund', type: 'text' }, 
+        { name: 'Amount/Units', type: 'text' }, 
+        { name: 'Folio Number', type: 'text' }
+    ]
   };
 
   const [draftData, setDraftData] = useState([]);
@@ -67,6 +101,11 @@ const App = () => {
     setDraftData([...draftData, { type, rows: [new Array(LINK_CONFIG[type].length).fill('')] }]);
   };
 
+  const removeLinkType = (idx) => {
+    const newData = draftData.filter((_, i) => i !== idx);
+    setDraftData(newData);
+  };
+
   const updateCell = (linkIdx, rowIdx, colIdx, val) => {
     const newData = [...draftData];
     newData[linkIdx].rows[rowIdx][colIdx] = val;
@@ -77,6 +116,12 @@ const App = () => {
     const newData = [...draftData];
     const colCount = LINK_CONFIG[newData[linkIdx].type].length;
     newData[linkIdx].rows.push(new Array(colCount).fill(''));
+    setDraftData(newData);
+  };
+
+  const removeRow = (linkIdx, rowIdx) => {
+    const newData = [...draftData];
+    newData[linkIdx].rows = newData[linkIdx].rows.filter((_, i) => i !== rowIdx);
     setDraftData(newData);
   };
 
@@ -261,22 +306,23 @@ const App = () => {
              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
                 <div className="flex items-center gap-4">
                    <div style={{ width: '48px', height: '48px', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
-                      <span className="material-symbols-outlined">edit_note</span>
+                       <span className="material-symbols-outlined">edit_square</span>
                    </div>
                    <div>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white' }}>Multi-Link Email Drafter</h3>
-                      <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Client: {activeCard?.name} · {activeCard?.email}</p>
+                       <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white' }}>Multi-Link Email Drafter</h3>
+                       <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Client: {activeCard?.name} · {activeCard?.email}</p>
                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                    <select 
                      onChange={(e) => addLinkType(e.target.value)}
-                     style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'white', outline: 'none' }}
+                     className="custom-select"
+                     style={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'white', outline: 'none' }}
                    >
-                     <option value="">+ Add Link Type</option>
-                     {Object.keys(LINK_CONFIG).map(t => <option key={t} value={t}>{t}</option>)}
+                     <option value="" style={{ color: '#64748b' }}>+ Add Link Type</option>
+                     {Object.keys(LINK_CONFIG).map(t => <option key={t} value={t} style={{ backgroundColor: '#0f172a', color: 'white' }}>{t}</option>)}
                    </select>
-                   <button onClick={() => setIsDrafterOpen(false)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                   <button onClick={() => setIsDrafterOpen(false)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="material-symbols-outlined">close</span>
                    </button>
                 </div>
@@ -286,15 +332,20 @@ const App = () => {
                 <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', borderRight: '1px solid rgba(255,255,255,0.05)' }} className="custom-scroll">
                    {draftData.length === 0 ? (
                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#334155' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.2 }}>table_view</span>
-                        <p style={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '12px' }}>Add a link type to start drafting</p>
+                        <span className="material-symbols-outlined" style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.2 }}>post_add</span>
+                        <p style={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '12px' }}>Start by selecting a link type</p>
                      </div>
                    ) : (
                      draftData.map((section, lIdx) => (
-                       <div key={lIdx} style={{ marginBottom: '2.5rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{section.type} Request</h4>
-                            <button onClick={() => addRow(lIdx)} style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', textTransform: 'uppercase' }}>+ Add Row</button>
+                       <div key={lIdx} style={{ marginBottom: '2.5rem', position: 'relative' }}>
+                          <div style={{ display: 'flex', justify-content: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div className="flex items-center gap-3">
+                                <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{section.type}</h4>
+                                <button onClick={() => removeLinkType(lIdx)} style={{ color: '#ef4444', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                                </button>
+                            </div>
+                            <button onClick={() => addRow(lIdx)} style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', textTransform: 'uppercase' }}>+ Add Row</button>
                           </div>
                           
                           <div style={{ overflow: 'hidden', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
@@ -302,8 +353,9 @@ const App = () => {
                               <thead>
                                 <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                   {LINK_CONFIG[section.type].map(col => (
-                                    <th key={col} style={{ padding: '0.75rem 1rem', fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>{col}</th>
+                                    <th key={col.name} style={{ padding: '0.75rem 1rem', fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>{col.name}</th>
                                   ))}
+                                  <th style={{ width: '40px' }}></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -312,7 +364,7 @@ const App = () => {
                                     {row.map((cell, cIdx) => (
                                       <td key={cIdx} style={{ padding: '4px' }}>
                                         <input 
-                                          type="text" 
+                                          type={LINK_CONFIG[section.type][cIdx].type} 
                                           value={cell}
                                           onChange={(e) => updateCell(lIdx, rIdx, cIdx, e.target.value)}
                                           onPaste={(e) => handlePaste(e, lIdx, rIdx, cIdx)}
@@ -321,6 +373,11 @@ const App = () => {
                                         />
                                       </td>
                                     ))}
+                                    <td style={{ textAlign: 'center' }}>
+                                        <button onClick={() => removeRow(lIdx, rIdx)} style={{ color: '#ef4444', opacity: 0.3, background: 'transparent', border: 'none', cursor: 'pointer', verticalAlign: 'middle' }}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                                        </button>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -331,79 +388,70 @@ const App = () => {
                    )}
                 </div>
 
-                <div style={{ width: '450px', backgroundColor: '#0b0e14', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }} className="custom-scroll">
+                <div style={{ width: '500px', backgroundColor: '#0b0e14', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }} className="custom-scroll">
                    <div className="flex items-center justify-between">
-                     <h4 style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Smart Preview</h4>
-                     <span style={{ fontSize: '9px', backgroundColor: '#fbbf24', color: '#78350f', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, textTransform: 'uppercase' }}>Draft Mode</span>
+                     <h4 style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Preview: Boutique Draft</h4>
+                     <span style={{ fontSize: '9px', backgroundColor: '#60a5fa', color: '#1e3a8a', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, textTransform: 'uppercase' }}>Elite View</span>
                    </div>
                    
-                   <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '20px', padding: '2rem', overflowX: 'hidden', color: '#1e293b', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <div style={{ fontSize: '13px', lineHeight: 1.6, fontFamily: 'Inter, sans-serif' }}>
-                         <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
-                            <p style={{ color: '#64748b', fontSize: '11px', margin: '0 0 4px 0' }}>Subject:</p>
-                            <p style={{ fontWeight: 800, color: '#0f172a', margin: 0 }}>Investment Links Request - {activeCard?.name}</p>
-                         </div>
+                   <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '12px', padding: '2.5rem', color: '#0f172a', fontSize: '14px', fontFamily: '"Inter", sans-serif', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                      <div style={{ marginBottom: '2rem', borderLeft: '4px solid #1e293b', paddingLeft: '1.25rem' }}>
+                         <p style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Subject</p>
+                         <p style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#0f172a' }}>Request for Investment Links // {activeCard?.name || "[Client Name]"}</p>
+                      </div>
 
-                         <p style={{ fontWeight: 700, marginBottom: '1.25rem', color: '#334155' }}>Hi Team,</p>
-                         
-                         <p style={{ marginBottom: '1.5rem', color: '#475569' }}>Please find the transaction link requirements for <strong>{activeCard?.name}</strong> below:</p>
-                         
-                         {draftData.map((section, idx) => (
-                           <div key={idx} style={{ marginBottom: '2rem' }}>
-                              <div style={{ backgroundColor: '#2563eb', color: 'white', fontWeight: 900, fontSize: '10px', padding: '6px 12px', borderRadius: '6px', textTransform: 'uppercase', marginBottom: '12px', display: 'inline-block', letterSpacing: '0.05em' }}>
-                                {section.type}
-                              </div>
-                              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none' }}>
-                                   <thead>
-                                     <tr style={{ backgroundColor: '#f8fafc' }}>
-                                       {LINK_CONFIG[section.type].map(col => (
-                                         <th key={col} style={{ borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', padding: '8px', fontSize: '10px', textTransform: 'uppercase', color: '#64748b', textAlign: 'left' }}>{col}</th>
-                                       ))}
-                                     </tr>
-                                   </thead>
-                                   <tbody>
-                                     {section.rows.filter(r => r.some(c => c.trim())).map((row, rIdx) => (
-                                       <tr key={rIdx}>
-                                         {row.map((cell, cIdx) => (
-                                           <td key={cIdx} style={{ borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', padding: '8px', fontSize: '11px', color: '#334155' }}>{cell || '-'}</td>
-                                         ))}
-                                       </tr>
-                                     ))}
-                                     {section.rows.filter(r => r.some(c => c.trim())).length === 0 && (
-                                       <tr>
-                                         <td colSpan={LINK_CONFIG[section.type].length} style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>No rows added</td>
-                                       </tr>
-                                     )}
-                                   </tbody>
-                                </table>
-                              </div>
+                      <p style={{ marginBottom: '1.5rem', fontWeight: 600 }}>Hi Team,</p>
+                      <p style={{ marginBottom: '2rem', color: '#334155' }}>Please generate the specified transaction links for <strong>{activeCard?.name || "[Client Name]"}</strong> as per the requirements details below:</p>
+                      
+                      {draftData.map((section, idx) => (
+                        <div key={idx} style={{ marginBottom: '2.5rem' }}>
+                           <p style={{ fontSize: '11px', fontWeight: 900, color: '#1e293b', textTransform: 'uppercase', marginBottom: '12px', borderBottom: '2px solid #1e293b', display: 'inline-block' }}>{section.type} DETAILS</p>
+                           
+                           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                             <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none' }}>
+                                <thead>
+                                  <tr style={{ backgroundColor: '#f8fafc' }}>
+                                    {LINK_CONFIG[section.type].map(col => (
+                                      <th key={col.name} style={{ borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '10px', fontWeight: 800, color: '#64748b', textAlign: 'left', textTransform: 'uppercase' }}>{col.name}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {section.rows.filter(r => r.some(c => c.trim())).map((row, rIdx) => (
+                                    <tr key={rIdx}>
+                                      {row.map((cell, cIdx) => (
+                                        <td key={cIdx} style={{ borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', padding: '10px 12px', fontSize: '12px', color: '#1e293b' }}>{cell || '-'}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                  {section.rows.filter(r => r.some(c => c.trim())).length === 0 && (
+                                    <tr>
+                                      <td colSpan={LINK_CONFIG[section.type].length} style={{ padding: '15px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Pending data entry...</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                             </table>
                            </div>
-                         ))}
-                         
-                         <div style={{ marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
-                            <p style={{ fontSize: '11px', color: '#475569', margin: '0 0 10px 0' }}>Kindly send the generated links and transaction screenshots on this thread.</p>
-                            <p style={{ fontWeight: 800, color: '#0f172a', margin: '20px 0 0 0' }}>Regards,</p>
-                            <p style={{ fontWeight: 600, color: '#2563eb', margin: '4px 0 0 0' }}>Financial Planning Team</p>
-                         </div>
+                        </div>
+                      ))}
+                      
+                      <div style={{ marginTop: '3rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
+                         <p style={{ fontSize: '12px', color: '#475569', marginBottom: '1.5rem' }}>Kindly revert with the transaction links and execution screenshots on this email thread.</p>
+                         <p style={{ fontWeight: 800, margin: '0 0 5px 0' }}>Warm regards,</p>
+                         <p style={{ fontWeight: 700, color: '#2563eb', margin: 0 }}>Financial Planning Team</p>
+                         <p style={{ fontSize: '11px', color: '#94a3b8', margin: '4px 0 0 0' }}>Boutique Asset Management Services</p>
                       </div>
                    </div>
 
-                   <div className="flex flex-col gap-3">
-                     <button 
-                        onClick={() => {
-                            const range = document.createRange();
-                            const preview = document.querySelector('.preview-container');
-                            // Fallback for manual copy since window.getSelection is tricky in frames
-                            alert('Draft Ready! You can now copy the preview to your Gmail draft.');
-                        }}
-                        className="btn-primary" 
-                        style={{ width: '100%', padding: '1.25rem', backgroundColor: '#059669', boxShadow: '0 4px 12px rgba(5,150,105,0.3)' }}
-                     >
-                        <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>content_copy</span> Copy to Clipboard
-                     </button>
-                     <p style={{ fontSize: '10px', color: '#475569', textAlign: 'center', fontStyle: 'italic' }}>Gmail Direct Integration postponed to v1.1</p>
-                   </div>
+                   <button 
+                     onClick={() => {
+                        alert('Ready to Copy! Your professional draft is formatted. (Manual copy enabled in prototype)');
+                     }}
+                     className="btn-primary" 
+                     style={{ width: '100%', padding: '1.25rem', backgroundColor: '#1e293b', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(30,41,59,0.5)' }}
+                   >
+                      <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>content_copy</span> Copy Elite Draft
+                   </button>
                 </div>
              </div>
           </div>

@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 
 // Simple Mock Data for v1 Prototype
-const INITIAL_CARDS = [
+const DEMO_CARDS = [
   { id: '1', name: 'Rahul Sharma', email: 'rahul@example.com', status: 'New Approval', type: 'NACH SIP', transactions: 3, days: 2, priority: 'High' },
   { id: '2', name: 'Anjali Gupta', email: 'anjali@example.com', status: 'Pending Ops', type: 'STP', transactions: 1, days: 5, priority: 'Normal' },
   { id: '3', name: 'Vikram Singh', email: 'vikram@example.com', status: 'Link Sent', type: 'Online Purchase', transactions: 2, days: 8, priority: 'High' },
@@ -19,7 +19,11 @@ const COLUMNS = [
 ];
 
 const App = () => {
-  const [cards, setCards] = useState(INITIAL_CARDS);
+  const [cards, setCards] = useState(() => {
+    const saved = localStorage.getItem('opstrack_cards');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
   const [isDrafterOpen, setIsDrafterOpen] = useState(false);
   const [activeCard, setActiveCard] = useState(null);
   
@@ -33,6 +37,24 @@ const App = () => {
   };
 
   const [draftData, setDraftData] = useState([]);
+
+  // Persist cards state
+  useEffect(() => {
+    localStorage.setItem('opstrack_cards', JSON.stringify(cards));
+  }, [cards]);
+
+  const handleLoadDemoData = () => {
+    if (window.confirm('Load Demo Data? This will overwrite your current board.')) {
+        setCards(DEMO_CARDS);
+    }
+  };
+
+  const handleFactoryReset = () => {
+    if (window.confirm('Are you sure? This will wipe ALL current data.')) {
+        setCards([]);
+        localStorage.removeItem('opstrack_cards');
+    }
+  };
 
   const handleOpenDrafter = (card) => {
     setActiveCard(card);
@@ -125,6 +147,22 @@ const App = () => {
               <span style={{ fontSize: '0.875rem', fontWeight: location.pathname === item.path ? 700 : 500 }}>{item.name}</span>
             </Link>
           ))}
+          
+          <div style={{ marginTop: '2rem', padding: '0 1rem' }}>
+            <p style={{ fontSize: '10px', color: '#475569', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>System Controls</p>
+            <button 
+                onClick={handleLoadDemoData}
+                style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}
+            >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>deployed_code</span> Load Demo Data
+            </button>
+            <button 
+                onClick={handleFactoryReset}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', color: '#f87171', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}
+            >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>restart_alt</span> Factory Reset
+            </button>
+          </div>
         </nav>
       </aside>
 
@@ -169,37 +207,43 @@ const App = () => {
                   </div>
 
                   <div className="flex flex-col gap-4" style={{ minHeight: '200px' }}>
-                    {cards.filter(card => card.status === col).map(card => (
-                      <div key={card.id} className="card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                           <div>
-                              <p style={{ fontSize: '0.875rem', fontWeight: 900, color: 'white', margin: 0 }}>{card.name}</p>
-                              <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>{card.email}</p>
-                           </div>
+                    {cards.filter(card => card.status === col).length === 0 ? (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.1, padding: '2rem' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>inbox</span>
                         </div>
-
-                        <div style={{ marginBottom: '1rem' }}>
-                          <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: '6px' }}>
-                            {card.type}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between" style={{ paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                           <div className="flex items-center gap-2">
-                              <span className="material-symbols-outlined" style={{ color: '#475569', fontSize: '14px' }}>schedule</span>
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d ago</span>
-                           </div>
-                           <div className="flex gap-2">
-                             <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
-                             </button>
-                             <button style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
-                             </button>
-                           </div>
-                        </div>
-                      </div>
-                    ))}
+                    ) : (
+                        cards.filter(card => card.status === col).map(card => (
+                          <div key={card.id} className="card">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                               <div>
+                                  <p style={{ fontSize: '0.875rem', fontWeight: 900, color: 'white', margin: 0 }}>{card.name}</p>
+                                  <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>{card.email}</p>
+                               </div>
+                            </div>
+    
+                            <div style={{ marginBottom: '1rem' }}>
+                              <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: '6px' }}>
+                                {card.type}
+                              </span>
+                            </div>
+    
+                            <div className="flex items-center justify-between" style={{ paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                               <div className="flex items-center gap-2">
+                                  <span className="material-symbols-outlined" style={{ color: '#475569', fontSize: '14px' }}>schedule</span>
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d ago</span>
+                               </div>
+                               <div className="flex gap-2">
+                                 <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
+                                 </button>
+                                 <button style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
+                                 </button>
+                               </div>
+                            </div>
+                          </div>
+                        ))
+                    )}
                   </div>
                 </div>
               ))}
@@ -287,47 +331,79 @@ const App = () => {
                    )}
                 </div>
 
-                <div style={{ width: '400px', backgroundColor: '#0b0e14', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }} className="custom-scroll">
-                   <h4 style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Smart Preview</h4>
+                <div style={{ width: '450px', backgroundColor: '#0b0e14', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }} className="custom-scroll">
+                   <div className="flex items-center justify-between">
+                     <h4 style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Smart Preview</h4>
+                     <span style={{ fontSize: '9px', backgroundColor: '#fbbf24', color: '#78350f', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, textTransform: 'uppercase' }}>Draft Mode</span>
+                   </div>
                    
-                   <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '16px', padding: '1.5rem', overflowHidden: 'hidden', color: '#1e293b' }}>
-                      <div style={{ fontSize: '12px', lineHeight: 1.6 }}>
-                         <p style={{ fontWeight: 700, marginBottom: '1rem' }}>Hi Ops Team,</p>
-                         <p style={{ marginBottom: '1rem' }}>Request transaction links for <strong>{activeCard?.name}</strong>:</p>
+                   <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '20px', padding: '2rem', overflowX: 'hidden', color: '#1e293b', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <div style={{ fontSize: '13px', lineHeight: 1.6, fontFamily: 'Inter, sans-serif' }}>
+                         <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
+                            <p style={{ color: '#64748b', fontSize: '11px', margin: '0 0 4px 0' }}>Subject:</p>
+                            <p style={{ fontWeight: 800, color: '#0f172a', margin: 0 }}>Investment Links Request - {activeCard?.name}</p>
+                         </div>
+
+                         <p style={{ fontWeight: 700, marginBottom: '1.25rem', color: '#334155' }}>Hi Team,</p>
+                         
+                         <p style={{ marginBottom: '1.5rem', color: '#475569' }}>Please find the transaction link requirements for <strong>{activeCard?.name}</strong> below:</p>
                          
                          {draftData.map((section, idx) => (
-                           <div key={idx} style={{ marginBottom: '1.5rem' }}>
-                              <div style={{ backgroundColor: '#2563eb', color: 'white', fontWeight: 900, fontSize: '10px', padding: '4px 12px', borderRadius: '4px', textTransform: 'uppercase', marginBottom: '8px', display: 'inline-block' }}>
-                                {section.type} Request
+                           <div key={idx} style={{ marginBottom: '2rem' }}>
+                              <div style={{ backgroundColor: '#2563eb', color: 'white', fontWeight: 900, fontSize: '10px', padding: '6px 12px', borderRadius: '6px', textTransform: 'uppercase', marginBottom: '12px', display: 'inline-block', letterSpacing: '0.05em' }}>
+                                {section.type}
                               </div>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0' }}>
-                                 <thead>
-                                   <tr style={{ backgroundColor: '#f8fafc' }}>
-                                     {LINK_CONFIG[section.type].map(col => (
-                                       <th key={col} style={{ border: '1px solid #e2e8f0', padding: '4px', fontSize: '8px', textTransform: 'uppercase', color: '#64748b' }}>{col}</th>
-                                     ))}
-                                   </tr>
-                                 </thead>
-                                 <tbody>
-                                   {section.rows.filter(r => r.some(c => c.trim())).map((row, rIdx) => (
-                                     <tr key={rIdx}>
-                                       {row.map((cell, cIdx) => (
-                                         <td key={cIdx} style={{ border: '1px solid #e2e8f0', padding: '4px', fontSize: '9px' }}>{cell || '-'}</td>
+                              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none' }}>
+                                   <thead>
+                                     <tr style={{ backgroundColor: '#f8fafc' }}>
+                                       {LINK_CONFIG[section.type].map(col => (
+                                         <th key={col} style={{ borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', padding: '8px', fontSize: '10px', textTransform: 'uppercase', color: '#64748b', textAlign: 'left' }}>{col}</th>
                                        ))}
                                      </tr>
-                                   ))}
-                                 </tbody>
-                              </table>
+                                   </thead>
+                                   <tbody>
+                                     {section.rows.filter(r => r.some(c => c.trim())).map((row, rIdx) => (
+                                       <tr key={rIdx}>
+                                         {row.map((cell, cIdx) => (
+                                           <td key={cIdx} style={{ borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', padding: '8px', fontSize: '11px', color: '#334155' }}>{cell || '-'}</td>
+                                         ))}
+                                       </tr>
+                                     ))}
+                                     {section.rows.filter(r => r.some(c => c.trim())).length === 0 && (
+                                       <tr>
+                                         <td colSpan={LINK_CONFIG[section.type].length} style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>No rows added</td>
+                                       </tr>
+                                     )}
+                                   </tbody>
+                                </table>
+                              </div>
                            </div>
                          ))}
                          
-                         <p style={{ fontStyle: 'italic', color: '#64748b', fontSize: '10px', marginTop: '1.5rem' }}>Kindly send screenshots and link on same thread.</p>
+                         <div style={{ marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
+                            <p style={{ fontSize: '11px', color: '#475569', margin: '0 0 10px 0' }}>Kindly send the generated links and transaction screenshots on this thread.</p>
+                            <p style={{ fontWeight: 800, color: '#0f172a', margin: '20px 0 0 0' }}>Regards,</p>
+                            <p style={{ fontWeight: 600, color: '#2563eb', margin: '4px 0 0 0' }}>Financial Planning Team</p>
+                         </div>
                       </div>
                    </div>
 
-                   <button className="btn-primary" style={{ width: '100%', padding: '1.25rem' }}>
-                      <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>send</span> Send via Gmail API
-                   </button>
+                   <div className="flex flex-col gap-3">
+                     <button 
+                        onClick={() => {
+                            const range = document.createRange();
+                            const preview = document.querySelector('.preview-container');
+                            // Fallback for manual copy since window.getSelection is tricky in frames
+                            alert('Draft Ready! You can now copy the preview to your Gmail draft.');
+                        }}
+                        className="btn-primary" 
+                        style={{ width: '100%', padding: '1.25rem', backgroundColor: '#059669', boxShadow: '0 4px 12px rgba(5,150,105,0.3)' }}
+                     >
+                        <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>content_copy</span> Copy to Clipboard
+                     </button>
+                     <p style={{ fontSize: '10px', color: '#475569', textAlign: 'center', fontStyle: 'italic' }}>Gmail Direct Integration postponed to v1.1</p>
+                   </div>
                 </div>
              </div>
           </div>

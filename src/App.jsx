@@ -338,7 +338,7 @@ const App = () => {
                    ) : (
                      draftData.map((section, lIdx) => (
                        <div key={lIdx} style={{ marginBottom: '2.5rem', position: 'relative' }}>
-                          <div style={{ display: 'flex', justify-content: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                             <div className="flex items-center gap-3">
                                 <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{section.type}</h4>
                                 <button onClick={() => removeLinkType(lIdx)} style={{ color: '#ef4444', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>

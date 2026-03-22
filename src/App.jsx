@@ -152,20 +152,30 @@ const App = () => {
 
   const location = useLocation();
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="app-container">
+      {/* Sidebar Overlay for Mobile */}
+      {isSidebarOpen && <div className="overlay" onClick={() => setIsSidebarOpen(false)}></div>}
+      
       {/* Sidebar */}
-      <aside className="sidebar pt-8">
-        <div className="px-8 mb-10 flex items-center gap-3">
-          <div style={{ width: '40px', height: '40px', backgroundColor: '#2563eb', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(37,99,235,0.4)' }}>
-            <span className="material-symbols-outlined" style={{ color: 'white' }}>analytics</span>
+      <aside className={`sidebar pt-8 ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="px-8 mb-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div style={{ width: '40px', height: '40px', backgroundColor: '#2563eb', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(37,99,235,0.4)' }}>
+              <span className="material-symbols-outlined" style={{ color: 'white' }}>analytics</span>
+            </div>
+            <div>
+              <h1 style={{ fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.025em', color: 'white', lineHeight: 1.2 }}>OpsTrack</h1>
+              <p style={{ fontSize: '10px', color: '#60a5fa', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '-2px' }}>Management Hub</p>
+            </div>
           </div>
-          <div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.025em', color: 'white', lineHeight: 1.2 }}>OpsTrack</h1>
-            <p style={{ fontSize: '10px', color: '#60a5fa', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '-2px' }}>Management Hub</p>
-          </div>
+          <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(false)} style={{ display: isSidebarOpen ? 'flex' : 'none' }}>
+            <span className="material-symbols-outlined">close</span>
+          </button>
         </div>
-
+        
         <nav style={{ flex: 1, padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {[
             { name: 'Overview', icon: 'grid_view', path: '/' },
@@ -176,6 +186,7 @@ const App = () => {
             <Link 
               key={item.name}
               to={item.path}
+              onClick={() => setIsSidebarOpen(false)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -214,11 +225,16 @@ const App = () => {
       {/* Main Content */}
       <main className="main-content">
         <header className="header">
-          <div>
-            <h2 style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ops Dashboard</h2>
-            <div className="flex items-center gap-2" style={{ marginTop: '2px' }}>
-              <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px rgba(16,185,129,0.8)' }}></span>
-              <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>Live Operations Pulse</span>
+          <div className="flex items-center gap-4">
+            <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(true)}>
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div>
+              <h2 style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ops Dashboard</h2>
+              <div className="flex items-center gap-2" style={{ marginTop: '2px' }}>
+                <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px rgba(16,185,129,0.8)' }}></span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>Live Pulse</span>
+              </div>
             </div>
           </div>
 
@@ -238,7 +254,7 @@ const App = () => {
           <section style={{ marginBottom: '2.5rem' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white', marginBottom: '1.5rem' }}>Workflow Board</h3>
 
-            <div className="kanban-board">
+            <div className="kanban-board custom-scroll">
               {COLUMNS.map(col => (
                 <div key={col} className="column">
                   <div className="flex items-center justify-between" style={{ padding: '0 0.75rem', height: '40px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -302,54 +318,56 @@ const App = () => {
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(11, 14, 20, 0.8)', backdropFilter: 'blur(8px)' }} onClick={() => setIsDrafterOpen(false)}></div>
           
-          <div style={{ position: 'relative', width: '90%', maxWidth: '1200px', margin: 'auto', maxHeight: '90vh', backgroundColor: '#0f121a', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-             <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
+          <div style={{ position: 'relative', width: '95%', maxWidth: '1200px', margin: 'auto', height: '90vh', backgroundColor: '#0f121a', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+             {/* Modal Header */}
+             <div className="p-4 sm:p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
                 <div className="flex items-center gap-4">
-                   <div style={{ width: '48px', height: '48px', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+                   <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
                        <span className="material-symbols-outlined">edit_square</span>
                    </div>
                    <div>
-                       <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white' }}>Multi-Link Email Drafter</h3>
-                       <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Client: {activeCard?.name} · {activeCard?.email}</p>
+                       <h3 style={{ fontSize: '1rem', fontWeight: 900, color: 'white' }}>Multi-Link Drafter</h3>
+                       <p style={{ fontSize: '9px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{activeCard?.name}</p>
                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                    <select 
                      onChange={(e) => addLinkType(e.target.value)}
                      className="custom-select"
-                     style={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'white', outline: 'none' }}
+                     style={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, color: 'white', outline: 'none' }}
                    >
-                     <option value="" style={{ color: '#64748b' }}>+ Add Link Type</option>
-                     {Object.keys(LINK_CONFIG).map(t => <option key={t} value={t} style={{ backgroundColor: '#0f172a', color: 'white' }}>{t}</option>)}
+                     <option value="">+ Add Link</option>
+                     {Object.keys(LINK_CONFIG).map(t => <option key={t} value={t}>{t}</option>)}
                    </select>
-                   <button onClick={() => setIsDrafterOpen(false)} style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                   <button onClick={() => setIsDrafterOpen(false)} style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="material-symbols-outlined">close</span>
                    </button>
                 </div>
              </div>
 
-             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', borderRight: '1px solid rgba(255,255,255,0.05)' }} className="custom-scroll">
+             <div className="drafter-content flex-1 overflow-hidden" style={{ display: 'flex' }}>
+                {/* Editor Pane */}
+                <div className="drafter-editor flex-1 overflow-y-auto p-4 sm:p-8 custom-scroll" style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}>
                    {draftData.length === 0 ? (
                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#334155' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.2 }}>post_add</span>
-                        <p style={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '12px' }}>Start by selecting a link type</p>
+                        <span className="material-symbols-outlined" style={{ fontSize: '64px', marginBottom: '1rem', opacity: 0.1 }}>post_add</span>
+                        <p style={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '11px', opacity: 0.5 }}>Select a link type to begin</p>
                      </div>
                    ) : (
                      draftData.map((section, lIdx) => (
-                       <div key={lIdx} style={{ marginBottom: '2.5rem', position: 'relative' }}>
+                       <div key={lIdx} style={{ marginBottom: '2.5rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                             <div className="flex items-center gap-3">
-                                <h4 style={{ fontSize: '12px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{section.type}</h4>
+                                <h4 style={{ fontSize: '11px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{section.type}</h4>
                                 <button onClick={() => removeLinkType(lIdx)} style={{ color: '#ef4444', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
                                 </button>
                             </div>
-                            <button onClick={() => addRow(lIdx)} style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', textTransform: 'uppercase' }}>+ Add Row</button>
+                            <button onClick={() => addRow(lIdx)} style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', background: 'rgba(255,255,255,0.05)', border: 'none', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', textTransform: 'uppercase' }}>+ Add Row</button>
                           </div>
                           
-                          <div style={{ overflow: 'hidden', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                          <div style={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }} className="custom-scroll">
+                            <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
                               <thead>
                                 <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                   {LINK_CONFIG[section.type].map(col => (
@@ -374,7 +392,7 @@ const App = () => {
                                       </td>
                                     ))}
                                     <td style={{ textAlign: 'center' }}>
-                                        <button onClick={() => removeRow(lIdx, rIdx)} style={{ color: '#ef4444', opacity: 0.3, background: 'transparent', border: 'none', cursor: 'pointer', verticalAlign: 'middle' }}>
+                                        <button onClick={() => removeRow(lIdx, rIdx)} style={{ color: '#ef4444', opacity: 0.3, background: 'transparent', border: 'none', cursor: 'pointer' }}>
                                             <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
                                         </button>
                                     </td>
@@ -388,31 +406,32 @@ const App = () => {
                    )}
                 </div>
 
-                <div style={{ width: '500px', backgroundColor: '#0b0e14', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }} className="custom-scroll">
+                {/* Preview Pane */}
+                <div className="drafter-preview overflow-y-auto p-4 sm:p-8 custom-scroll" style={{ width: '500px', backgroundColor: '#0b0e14', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                    <div className="flex items-center justify-between">
-                     <h4 style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Preview: Boutique Draft</h4>
-                     <span style={{ fontSize: '9px', backgroundColor: '#60a5fa', color: '#1e3a8a', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, textTransform: 'uppercase' }}>Elite View</span>
+                     <h4 style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Elite Preview</h4>
+                     <span style={{ fontSize: '8px', backgroundColor: '#60a5fa', color: '#1e3a8a', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>PRODUCTION READY</span>
                    </div>
                    
-                   <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '12px', padding: '2.5rem', color: '#0f172a', fontSize: '14px', fontFamily: '"Inter", sans-serif', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-                      <div style={{ marginBottom: '2rem', borderLeft: '4px solid #1e293b', paddingLeft: '1.25rem' }}>
-                         <p style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Subject</p>
-                         <p style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#0f172a' }}>Request for Investment Links // {activeCard?.name || "[Client Name]"}</p>
+                   <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '12px', padding: '1.5rem sm:2.5rem', color: '#0f172a', fontSize: '13px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                      <div style={{ marginBottom: '1.5rem', borderLeft: '3px solid #1e293b', paddingLeft: '1rem' }}>
+                         <p style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Subject</p>
+                         <p style={{ fontSize: '14px', fontWeight: 800, margin: 0, color: '#0f172a' }}>Request for Investment Links // {activeCard?.name || "[Client Name]"}</p>
                       </div>
 
-                      <p style={{ marginBottom: '1.5rem', fontWeight: 600 }}>Hi Team,</p>
-                      <p style={{ marginBottom: '2rem', color: '#334155' }}>Please generate the specified transaction links for <strong>{activeCard?.name || "[Client Name]"}</strong> as per the requirements details below:</p>
+                      <p style={{ marginBottom: '1rem', fontWeight: 600 }}>Hi Team,</p>
+                      <p style={{ marginBottom: '1.5rem', color: '#334155' }}>Please generate the specified transaction links for <strong>{activeCard?.name || "[Client Name]"}</strong>:</p>
                       
                       {draftData.map((section, idx) => (
-                        <div key={idx} style={{ marginBottom: '2.5rem' }}>
-                           <p style={{ fontSize: '11px', fontWeight: 900, color: '#1e293b', textTransform: 'uppercase', marginBottom: '12px', borderBottom: '2px solid #1e293b', display: 'inline-block' }}>{section.type} DETAILS</p>
+                        <div key={idx} style={{ marginBottom: '2rem' }}>
+                           <p style={{ fontSize: '10px', fontWeight: 900, color: '#1e293b', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '2px solid #1e293b', display: 'inline-block' }}>{section.type}</p>
                            
-                           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                             <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none' }}>
+                           <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', overflowX: 'auto' }}>
+                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                   <tr style={{ backgroundColor: '#f8fafc' }}>
                                     {LINK_CONFIG[section.type].map(col => (
-                                      <th key={col.name} style={{ borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', padding: '10px 12px', fontSize: '10px', fontWeight: 800, color: '#64748b', textAlign: 'left', textTransform: 'uppercase' }}>{col.name}</th>
+                                      <th key={col.name} style={{ borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', padding: '8px 10px', fontSize: '9px', fontWeight: 800, color: '#64748b', textAlign: 'left', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{col.name}</th>
                                     ))}
                                   </tr>
                                 </thead>
@@ -420,37 +439,30 @@ const App = () => {
                                   {section.rows.filter(r => r.some(c => c.trim())).map((row, rIdx) => (
                                     <tr key={rIdx}>
                                       {row.map((cell, cIdx) => (
-                                        <td key={cIdx} style={{ borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', padding: '10px 12px', fontSize: '12px', color: '#1e293b' }}>{cell || '-'}</td>
+                                        <td key={cIdx} style={{ borderBottom: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', padding: '8px 10px', fontSize: '11px', color: '#1e293b', whiteSpace: 'nowrap' }}>{cell || '-'}</td>
                                       ))}
                                     </tr>
                                   ))}
-                                  {section.rows.filter(r => r.some(c => c.trim())).length === 0 && (
-                                    <tr>
-                                      <td colSpan={LINK_CONFIG[section.type].length} style={{ padding: '15px', textAlign: 'center', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Pending data entry...</td>
-                                    </tr>
-                                  )}
                                 </tbody>
                              </table>
                            </div>
                         </div>
                       ))}
                       
-                      <div style={{ marginTop: '3rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
-                         <p style={{ fontSize: '12px', color: '#475569', marginBottom: '1.5rem' }}>Kindly revert with the transaction links and execution screenshots on this email thread.</p>
-                         <p style={{ fontWeight: 800, margin: '0 0 5px 0' }}>Warm regards,</p>
+                      <div style={{ marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                         <p style={{ fontSize: '11px', color: '#475569', marginBottom: '1rem' }}>Kindly revert with the links and screenshots.</p>
+                         <p style={{ fontWeight: 800, margin: '0', fontSize: '12px' }}>Regards,</p>
                          <p style={{ fontWeight: 700, color: '#2563eb', margin: 0 }}>Financial Planning Team</p>
-                         <p style={{ fontSize: '11px', color: '#94a3b8', margin: '4px 0 0 0' }}>Boutique Asset Management Services</p>
+                         <p style={{ fontSize: '10px', color: '#94a3b8', margin: '2px 0 0 0' }}>Boutique Asset Management HQ</p>
                       </div>
                    </div>
 
                    <button 
-                     onClick={() => {
-                        alert('Ready to Copy! Your professional draft is formatted. (Manual copy enabled in prototype)');
-                     }}
+                     onClick={() => alert('Elite Draft Copied!')}
                      className="btn-primary" 
-                     style={{ width: '100%', padding: '1.25rem', backgroundColor: '#1e293b', borderRadius: '12px', boxShadow: '0 10px 25px -5px rgba(30,41,59,0.5)' }}
+                     style={{ width: '100%', padding: '1rem', borderRadius: '12px', fontSize: '14px' }}
                    >
-                      <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>content_copy</span> Copy Elite Draft
+                      <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '8px', fontSize: '20px' }}>content_copy</span> Copy Elite Draft
                    </button>
                 </div>
              </div>
@@ -460,5 +472,7 @@ const App = () => {
     </div>
   );
 };
+
+export default App;
 
 export default App;

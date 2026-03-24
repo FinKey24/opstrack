@@ -95,7 +95,7 @@ const App = () => {
         });
 
         // Restore token if exists
-        const savedToken = localStorage.getItem('gmailToken');
+        const savedToken = sessionStorage.getItem('gmailToken');
         if (savedToken) {
            try {
               const parsedToken = JSON.parse(savedToken);
@@ -103,7 +103,7 @@ const App = () => {
               setTokenResponse(parsedToken);
               setIsAuthenticated(true);
            } catch (e) {
-              localStorage.removeItem('gmailToken');
+              sessionStorage.removeItem('gmailToken');
            }
         }
       });
@@ -119,7 +119,7 @@ const App = () => {
         if (response.error !== undefined) throw response;
         setTokenResponse(response);
         setIsAuthenticated(true);
-        localStorage.setItem('gmailToken', JSON.stringify(response));
+        sessionStorage.setItem('gmailToken', JSON.stringify(response));
         alert('Gmail Connected! Live Automation is now ACTIVE. ⚡🎯');
         checkGmailStatus(); // Initial scan
       },
@@ -285,7 +285,7 @@ const App = () => {
       if (err.status === 401 || err.status === 403) {
          setIsAuthenticated(false);
          setTokenResponse(null);
-         localStorage.removeItem('gmailToken');
+         sessionStorage.removeItem('gmailToken');
          console.warn('Gmail Session Expired. Please reconnect.');
       }
     } finally {

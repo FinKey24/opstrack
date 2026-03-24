@@ -65,6 +65,102 @@ const App = () => {
 
   const [draftData, setDraftData] = useState([]);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [tokenResponse, setTokenResponse] = useState(null);
+  const [isPolling, setIsPolling] = useState(false);
+
+  // --- GMAIL INTEGRATION LOGIC ---
+  const CLIENT_ID = '456901579054-gp5socevnrce9a3i2pmgu6m799jpbeo1.apps.googleusercontent.com';
+  const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify';
+
+  useEffect(() => {
+    // Load GAPI and GIS
+    const script = document.createElement('script');
+    script.src = "https://apis.google.com/js/api.js";
+    script.onload = () => {
+      window.gapi.load('client', async () => {
+        await window.gapi.client.init({
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'],
+        });
+      });
+    };
+    document.body.appendChild(script);
+  }, []);
+
+  const handleAuthClick = () => {
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (response) => {
+        if (response.error !== undefined) throw response;
+        setTokenResponse(response);
+        setIsAuthenticated(true);
+        alert('Gmail Connected! Live Automation is now ACTIVE. ⚡🎯');
+        checkGmailStatus(); // Initial scan
+      },
+    });
+    client.requestAccessToken();
+  };
+
+  const checkGmailStatus = async () => {
+    if (!isAuthenticated || !tokenResponse) return;
+    setIsPolling(true);
+
+    try {
+      const response = await window.gapi.client.gmail.users.messages.list({
+        userId: 'me',
+        maxResults: 20,
+        q: 'after:' + Math.floor((Date.now() - 3600000 * 24) / 1000) // Last 24 hours for safety
+      });
+
+      const messages = response.result.messages || [];
+      for (const msg of messages) {
+        const detail = await window.gapi.client.gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id
+        });
+
+        const snippet = detail.result.snippet.toLowerCase();
+        
+        // DETECTION ENGINE
+        setCards(prev => prev.map(card => {
+          let updatedCard = { ...card };
+          
+          // 1. Link Sent Detection ("Ref No" or "Inform the officer")
+          if ((snippet.includes('inform the officer') || snippet.includes('ref no')) && card.status === 'Pending Ops') {
+            const refMatch = snippet.match(/ref no[:\s]+(\w+)/i);
+            updatedCard.status = 'Link Sent';
+            updatedCard.expiryTime = Date.now() + (48 * 60 * 60 * 1000);
+            if (refMatch) updatedCard.refNo = refMatch[1].toUpperCase();
+            console.log('Detected Link Sent for:', card.name);
+          }
+          
+          // 2. Authorisation Detection ("Authorised" or "Authenticated")
+          if ((snippet.includes('authorised') || snippet.includes('authenticated')) && card.status === 'Link Sent') {
+            updatedCard.status = 'Authorised';
+            updatedCard.expiryTime = null;
+            console.log('Detected Authorisation for:', card.name);
+          }
+
+          return updatedCard;
+        }));
+      }
+    } catch (err) {
+      console.error('Gmail Polling Error:', err);
+    } finally {
+      setIsPolling(false);
+    }
+  };
+
+  // Run polling every 3 minutes if authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const interval = setInterval(checkGmailStatus, 180000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, tokenResponse]);
+
   // Persist cards state
   useEffect(() => {
     localStorage.setItem('opstrack_cards', JSON.stringify(cards));
@@ -251,6 +347,20 @@ const App = () => {
           
           <div style={{ marginTop: '2rem', padding: '0 1rem' }}>
             <p style={{ fontSize: '10px', color: '#475569', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Automation Controls</p>
+            
+            {!isAuthenticated ? (
+              <button 
+                  onClick={handleAuthClick}
+                  style={{ width: '100%', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', borderRadius: '0.75rem', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: 'none', color: 'white', fontSize: '11px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)' }}
+              >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>key</span> Connect Gmail Live
+              </button>
+            ) : (
+              <div style={{ width: '100%', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', borderRadius: '0.75rem', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', fontSize: '11px', fontWeight: 800 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span> Gmail Connected
+              </div>
+            )}
+
             <button 
                 onClick={handleLoadDemoData}
                 style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}
@@ -277,8 +387,17 @@ const App = () => {
             <div>
               <h2 style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ops Dashboard</h2>
               <div className="flex items-center gap-2" style={{ marginTop: '2px' }}>
-                <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px rgba(16,185,129,0.8)' }}></span>
-                <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>Live Tracking</span>
+                <span style={{ 
+                  width: '8px', 
+                  height: '8px', 
+                  backgroundColor: isPolling ? '#3b82f6' : '#10b981', 
+                  borderRadius: '50%', 
+                  boxShadow: isPolling ? '0 0 8px rgba(59,130,246,0.8)' : '0 0 8px rgba(16,185,129,0.8)',
+                  animation: isPolling ? 'pulse 1.5s infinite' : 'none'
+                }}></span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>
+                  {isPolling ? 'Syncing Gmail...' : 'Live Tracking'}
+                </span>
               </div>
             </div>
           </div>

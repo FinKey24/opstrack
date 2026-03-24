@@ -475,6 +475,15 @@ const App = () => {
                                   <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d in flow</span>
                                </div>
                                <div className="flex gap-2">
+                                 {/* Status Jump Controls */}
+                                 <select 
+                                   value={card.status}
+                                   onChange={(e) => updateCardStatus(card.id, e.target.value)}
+                                   style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '4px', fontSize: '9px', fontWeight: 700, color: '#94a3b8', cursor: 'pointer', padding: '0 4px' }}
+                                 >
+                                   {COLUMNS.map(c => <option key={c} value={c}>{c}</option>)}
+                                 </select>
+
                                  {card.status === 'Link Sent' ? (
                                    <button onClick={() => updateCardStatus(card.id, 'Authorised')} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', border: 'none', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check_circle</span>
@@ -484,7 +493,6 @@ const App = () => {
                                      onClick={() => {
                                        setActiveCard(card);
                                        setIsDrafterOpen(true);
-                                       alert('Quick Action: Retriggering/Regenerating drafted for email...');
                                      }} 
                                      style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                    >

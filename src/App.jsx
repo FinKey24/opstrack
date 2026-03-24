@@ -12,6 +12,32 @@ const DEMO_CARDS = [
 
 const COLUMNS = ['New Approval', 'Pending Ops', 'Link Sent', 'Authorised', 'Expired', 'Rejected'];
 
+const getTypeIndices = (str, word) => {
+   const regex = new RegExp(word, 'gi');
+   let result, indices = [];
+   while ( (result = regex.exec(str)) ) {
+      indices.push(result.index);
+   }
+   return indices;
+};
+
+const getMinDistance = (statusWords, linkWord, text) => {
+   const linkIndices = getTypeIndices(text, linkWord);
+   if (linkIndices.length === 0) return Infinity;
+
+   let minDistance = Infinity;
+   for (const word of statusWords) {
+      const statusInd = getTypeIndices(text, word);
+      for (const sIdx of statusInd) {
+          for (const lIdx of linkIndices) {
+              const dist = Math.abs(sIdx - lIdx);
+              if (dist < minDistance) minDistance = dist;
+          }
+      }
+   }
+   return minDistance;
+};
+
 const App = () => {
   const [cards, setCards] = useState(() => {
     const saved = localStorage.getItem('opstrack_cards');
@@ -252,23 +278,23 @@ const App = () => {
                   const typeInEmail = subject.includes(link.type.toLowerCase()) || snippet.includes(link.type.toLowerCase());
                   if (!typeInEmail) return link;
 
-                  // Break email into logical clauses (sentences, commas, or conjunctions) to isolate statuses
-                  const clauses = textWindow.split(/[\n\.,;&|]|\band\b|\bbut\b/i);
-                  const relevantClause = clauses.find(c => c.includes(link.type.toLowerCase())) || textWindow;
-                  const tw = relevantClause;
+                  // Use absolute mathematical character distance to find the closest status word to this specific link type
+                  const distSent = getMinDistance(['inform the officer', 'ref no'], link.type.toLowerCase(), textWindow);
+                  const distAuth = getMinDistance(['authorised', 'authenticated'], link.type.toLowerCase(), textWindow);
+                  const distRej = getMinDistance(['rejected', 'failed', 'invalid'], link.type.toLowerCase(), textWindow);
 
-                  const lSent = tw.includes('inform the officer') || tw.includes('ref no');
-                  const lAuth = tw.includes('authorised') || tw.includes('authenticated');
-                  const lRej = tw.includes('rejected') || tw.includes('failed') || tw.includes('invalid');
+                  if (distSent === Infinity && distAuth === Infinity && distRej === Infinity) return link;
 
-                  if (lRej && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
+                  const minDist = Math.min(distSent, distAuth, distRej);
+
+                  if (minDist === distRej && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
                      return { ...link, status: 'Rejected', expiryTime: null, completedAt: link.completedAt || msgTime };
                   }
-                  if (lAuth && (link.status === 'Link Sent' || link.status === 'Pending Ops')) {
+                  if (minDist === distAuth && (link.status === 'Link Sent' || link.status === 'Pending Ops')) {
                      return { ...link, status: 'Authorised', expiryTime: null, completedAt: link.completedAt || msgTime };
                   }
-                  if (lSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
-                     const refMatch = tw.match(/ref no[\.\s:]+([a-z0-9]+)/i);
+                  if (minDist === distSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
+                     const refMatch = textWindow.match(/ref no[\.\s:]+([a-z0-9]+)/i);
                      return { ...link, status: 'Link Sent', expiryTime: Date.now() + (48*3600*1000), refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo };
                   }
 

@@ -9,14 +9,7 @@ const DEMO_CARDS = [
   { id: '4', name: 'Sanjay Kumar', email: 'sanjay@example.com', status: 'Authorised', type: 'Switch', transactions: 4, days: 1, priority: 'Normal' },
 ];
 
-const COLUMNS = [
-  'New Approval',
-  'Pending Ops',
-  'Link Sent',
-  'Authorised',
-  'Done',
-  'Rejected'
-];
+const COLUMNS = ['New Approval', 'Pending Ops', 'Link Sent', 'Authorised', 'Expired', 'Rejected'];
 
 const App = () => {
   const [cards, setCards] = useState(() => {
@@ -79,7 +72,17 @@ const App = () => {
 
   const handleLoadDemoData = () => {
     if (window.confirm('Load Demo Data? This will overwrite your current board.')) {
-        setCards(DEMO_CARDS);
+      const now = Date.now();
+      const demoCards = [
+        { id: now + 1, name: 'Capt. Rahul Sharma', email: 'rahul.s@navy.gov.in', type: 'Redemption', status: 'New Approval', days: 0, expiryTime: null },
+        { id: now + 2, name: 'Sqn Ldr. Meera Roy', email: 'meera.r@iaf.nic.in', type: 'Purchase', status: 'Pending Ops', days: 1, expiryTime: null },
+        { id: now + 3, name: 'Col. Rajesh Khanna', email: 'r.khanna@army.mil.in', type: 'Switch', status: 'Link Sent', days: 0, expiryTime: now + (36 * 60 * 60 * 1000) }, // 36h left
+        { id: now + 4, name: 'Brig. Amit Shah', email: 'amit.s@defence.gov.in', type: 'SIP Setup', status: 'Authorised', days: 3, expiryTime: null, refNo: 'TXN99821' },
+        { id: now + 5, name: 'Major General P. Singh', email: 'singh.gen@army.gov.in', type: 'KYC Update', status: 'Expired', days: 5, expiryTime: null },
+        { id: now + 6, name: 'Lt. Col. Anita Desai', email: 'anita.d@army.gov.in', type: 'Redemption', status: 'Link Sent', days: 2, expiryTime: now + (2 * 60 * 60 * 1000) }, // 2h left (Orange Alert)
+      ];
+      setCards(demoCards);
+      alert('Boutique Workflow Intelligence Loaded! ⏳🛡️');
     }
   };
 
@@ -93,6 +96,13 @@ const App = () => {
   const handleOpenDrafter = (card) => {
     setActiveCard(card);
     setDraftData([]);
+    
+    // Auto-detect Quick Actions based on status
+    if (card.status === 'Expired' || card.status === 'Rejected') {
+      // Pre-fill a "Quick Action" section if needed, or we handle it in the Preview
+      console.log('Preparing Quick Action draft for', card.name);
+    }
+    
     setIsDrafterOpen(true);
   };
 
@@ -150,9 +160,44 @@ const App = () => {
     setDraftData(newData);
   };
 
-  const location = useLocation();
+  // Status Actions
+  const updateCardStatus = (cardId, newStatus, extraData = {}) => {
+    setCards(prev => prev.map(card => 
+      card.id === cardId 
+        ? { 
+            ...card, 
+            status: newStatus, 
+            expiryTime: newStatus === 'Link Sent' ? Date.now() + (48 * 60 * 60 * 1000) : null,
+            ...extraData 
+          } 
+        : card
+    ));
+  };
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const calculateTimeLeft = (expiryTime) => {
+    if (!expiryTime) return null;
+    const difference = expiryTime - Date.now();
+    if (difference <= 0) return 'EXPIRED';
+    
+    const hours = Math.floor(difference / (1000 * 60 * 60));
+    const minutes = Math.floor((difference / 1000 / 60) % 60);
+    return `${hours}h ${minutes}m left`;
+  };
+
+  const getTimerColor = (expiryTime) => {
+    if (!expiryTime) return '#64748b';
+    const difference = expiryTime - Date.now();
+    if (difference <= 0) return '#ef4444';
+    if (difference < (12 * 60 * 60 * 1000)) return '#f59e0b'; // Less than 12h
+    return '#10b981';
+  };
+
+  // Force render update for timer
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="app-container">
@@ -168,7 +213,7 @@ const App = () => {
             </div>
             <div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 900, letterSpacing: '-0.025em', color: 'white', lineHeight: 1.2 }}>OpsTrack</h1>
-              <p style={{ fontSize: '10px', color: '#60a5fa', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '-2px' }}>Management Hub</p>
+              <p style={{ fontSize: '10px', color: '#60a5fa', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '-2px' }}>Operational Intelligence</p>
             </div>
           </div>
           <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(false)} style={{ display: isSidebarOpen ? 'flex' : 'none' }}>
@@ -178,10 +223,10 @@ const App = () => {
         
         <nav style={{ flex: 1, padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {[
-            { name: 'Overview', icon: 'grid_view', path: '/' },
-            { name: 'Team Performance', icon: 'groups', path: '/team' },
-            { name: 'Feedback Funnel', icon: 'filter_alt', path: '/feedback' },
-            { name: 'Settings', icon: 'settings', path: '/settings' },
+            { name: 'Workflow Hub', icon: 'grid_view', path: '/' },
+            { name: 'Ops Performance', icon: 'groups', path: '/team' },
+            { name: 'Ref No. Tracker', icon: 'receipt_long', path: '/ref' },
+            { name: 'System Settings', icon: 'settings', path: '/settings' },
           ].map(item => (
             <Link 
               key={item.name}
@@ -205,18 +250,18 @@ const App = () => {
           ))}
           
           <div style={{ marginTop: '2rem', padding: '0 1rem' }}>
-            <p style={{ fontSize: '10px', color: '#475569', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>System Controls</p>
+            <p style={{ fontSize: '10px', color: '#475569', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Automation Controls</p>
             <button 
                 onClick={handleLoadDemoData}
                 style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}
             >
-                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>deployed_code</span> Load Demo Data
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>deployed_code</span> Load Workflow Demo
             </button>
             <button 
                 onClick={handleFactoryReset}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', color: '#f87171', fontSize: '10px', fontWeight: 900, cursor: 'pointer' }}
             >
-                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>restart_alt</span> Factory Reset
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>restart_alt</span> Reset Database
             </button>
           </div>
         </nav>
@@ -233,7 +278,7 @@ const App = () => {
               <h2 style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ops Dashboard</h2>
               <div className="flex items-center gap-2" style={{ marginTop: '2px' }}>
                 <span style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%', boxShadow: '0 0 8px rgba(16,185,129,0.8)' }}></span>
-                <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>Live Pulse</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>Live Tracking</span>
               </div>
             </div>
           </div>
@@ -241,25 +286,29 @@ const App = () => {
           <div className="flex items-center gap-6">
             <div className="flex items-center" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '0.75rem', padding: '0.5rem 1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
               <span className="material-symbols-outlined" style={{ color: '#94a3b8', fontSize: '1.125rem', marginRight: '0.5rem' }}>search</span>
-              <input type="text" placeholder="Search Client..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.75rem', color: 'white', width: '12rem' }} />
+              <input type="text" placeholder="Search Client ID..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.75rem', color: 'white', width: '12rem' }} />
             </div>
             <button style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.75rem', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}>
               <span className="material-symbols-outlined">notifications</span>
             </button>
-            <div style={{ width: '40px', height: '40px', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1e293b', color: '#94a3b8', fontWeight: 900, fontSize: '0.75rem' }}>RM</div>
+            <div style={{ width: '40px', height: '40px', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1e293b', color: '#94a3b8', fontWeight: 900, fontSize: '0.75rem' }}>PL</div>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scroll">
           <section style={{ marginBottom: '2.5rem' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white', marginBottom: '1.5rem' }}>Workflow Board</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white', marginBottom: '1.5rem' }}>Live Flow Monitor</h3>
 
             <div className="kanban-board custom-scroll">
               {COLUMNS.map(col => (
                 <div key={col} className="column">
                   <div className="flex items-center justify-between" style={{ padding: '0 0.75rem', height: '40px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="flex items-center gap-2">
-                      <span style={{ width: '6px', height: '6px', backgroundColor: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 8px rgba(59,130,246,0.6)' }}></span>
+                      <span style={{ width: '6px', height: '6px', backgroundColor: 
+                        col === 'Expired' ? '#ef4444' : 
+                        col === 'Authorised' ? '#10b981' : 
+                        col === 'Link Sent' ? '#3b82f6' : '#94a3b8', 
+                        borderRadius: '50%' }}></span>
                       <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>{col}</span>
                     </div>
                     <span style={{ fontSize: '10px', fontWeight: 900, backgroundColor: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px', color: '#64748b' }}>
@@ -267,14 +316,22 @@ const App = () => {
                     </span>
                   </div>
 
-                  <div className="flex flex-col gap-4" style={{ minHeight: '200px' }}>
+                  <div className="flex flex-col gap-4" style={{ minHeight: '200px', padding: '1rem 0.5rem' }}>
                     {cards.filter(card => card.status === col).length === 0 ? (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.1, padding: '2rem' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>inbox</span>
                         </div>
                     ) : (
-                        cards.filter(card => card.status === col).map(card => (
+                        cards.filter(card => card.status === col).map(card => {
+                          const timeLeft = calculateTimeLeft(card.expiryTime);
+                          return (
                           <div key={card.id} className="card">
+                            {timeLeft && (
+                              <div style={{ position: 'absolute', top: 0, right: 0, padding: '4px 8px', background: getTimerColor(card.expiryTime), color: 'white', fontSize: '8px', fontWeight: 900, borderBottomLeftRadius: '8px', letterSpacing: '0.05em' }}>
+                                {timeLeft}
+                              </div>
+                            )}
+
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                                <div>
                                   <p style={{ fontSize: '0.875rem', fontWeight: 900, color: 'white', margin: 0 }}>{card.name}</p>
@@ -282,28 +339,47 @@ const App = () => {
                                </div>
                             </div>
     
-                            <div style={{ marginBottom: '1rem' }}>
+                            <div className="flex items-center gap-2" style={{ marginBottom: '1rem' }}>
                               <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: '6px' }}>
                                 {card.type}
                               </span>
+                              {card.refNo && (
+                                <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontSize: '9px', fontWeight: 900, padding: '4px 8px', borderRadius: '6px' }}>
+                                  #{card.refNo}
+                                </span>
+                              )}
                             </div>
     
                             <div className="flex items-center justify-between" style={{ paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                <div className="flex items-center gap-2">
-                                  <span className="material-symbols-outlined" style={{ color: '#475569', fontSize: '14px' }}>schedule</span>
-                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d ago</span>
+                                  <span className="material-symbols-outlined" style={{ color: '#475569', fontSize: '14px' }}>history</span>
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d in flow</span>
                                </div>
                                <div className="flex gap-2">
-                                 <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
-                                 </button>
-                                 <button style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>visibility</span>
-                                 </button>
+                                 {card.status === 'Link Sent' ? (
+                                   <button onClick={() => updateCardStatus(card.id, 'Authorised')} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', border: 'none', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check_circle</span>
+                                   </button>
+                                 ) : card.status === 'Expired' || card.status === 'Rejected' ? (
+                                   <button 
+                                     onClick={() => {
+                                       setActiveCard(card);
+                                       setIsDrafterOpen(true);
+                                       alert('Quick Action: Retriggering/Regenerating drafted for email...');
+                                     }} 
+                                     style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                   >
+                                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>autorenew</span>
+                                   </button>
+                                 ) : (
+                                   <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
+                                   </button>
+                                 )}
                                </div>
                             </div>
                           </div>
-                        ))
+                        )})
                     )}
                   </div>
                 </div>
@@ -416,11 +492,21 @@ const App = () => {
                    <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '12px', padding: '1.5rem sm:2.5rem', color: '#0f172a', fontSize: '13px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                       <div style={{ marginBottom: '1.5rem', borderLeft: '3px solid #1e293b', paddingLeft: '1rem' }}>
                          <p style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Subject</p>
-                         <p style={{ fontSize: '14px', fontWeight: 800, margin: 0, color: '#0f172a' }}>Request for Investment Links // {activeCard?.name || "[Client Name]"}</p>
+                         <p style={{ fontSize: '14px', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                           {activeCard?.status === 'Expired' ? 'RETRIGGER Link: ' : 
+                            activeCard?.status === 'Rejected' ? 'REGENERATE Request: ' : 
+                            'Request for Investment Links // '}
+                           {activeCard?.name || "[Client Name]"}
+                         </p>
                       </div>
 
                       <p style={{ marginBottom: '1rem', fontWeight: 600 }}>Hi Team,</p>
-                      <p style={{ marginBottom: '1.5rem', color: '#334155' }}>Please generate the specified transaction links for <strong>{activeCard?.name || "[Client Name]"}</strong>:</p>
+                      <p style={{ marginBottom: '1.5rem', color: '#334155' }}>
+                        {activeCard?.status === 'Expired' ? 'The previous links have expired. Kindly retrigger the execution links for ' :
+                         activeCard?.status === 'Rejected' ? 'The previous request was rejected. Please regenerate the transaction links for ' :
+                         'Please generate the specified transaction links for '}
+                        <strong>{activeCard?.name || "[Client Name]"}</strong>:
+                      </p>
                       
                       {draftData.map((section, idx) => (
                         <div key={idx} style={{ marginBottom: '2rem' }}>

@@ -144,6 +144,13 @@ const App = () => {
             const headers = detail.result.payload.headers;
             const subjectOrig = headers.find(h => h.name === 'Subject')?.value || '';
             const subject = subjectOrig.toLowerCase();
+            const msgDateStr = headers.find(h => h.name === 'Date')?.value || '';
+            let msgTime = Date.now();
+            if (detail.result.internalDate) {
+               msgTime = parseInt(detail.result.internalDate, 10);
+            } else if (msgDateStr) {
+               msgTime = new Date(msgDateStr).getTime();
+            }
             
             // 1. Find matching existing client
             let matchedCardIdx = updatedCards.findIndex(card => 
@@ -176,6 +183,7 @@ const App = () => {
                        email: 'Auto-Captured',
                        status: 'Pending Ops',
                        days: 0,
+                       lastInteraction: msgTime,
                        links: foundLinkTypes.map(type => ({
                            type,
                            status: 'Pending Ops',
@@ -190,6 +198,12 @@ const App = () => {
                // EXISTING CLIENT
                let card = { ...updatedCards[matchedCardIdx] };
                let cardLinks = [...(card.links || [])];
+
+               // Track last interaction if email explicitly matches
+               const textWindow = subject + " " + snippet;
+               if (foundLinkTypes.length > 0 || cardLinks.some(l => textWindow.includes(l.type.toLowerCase()) || subject.includes(l.type.toLowerCase()) || snippet.includes(l.type.toLowerCase()))) {
+                   card.lastInteraction = msgTime; // Update timestamp
+               }
 
                // Append new links if requested
                for (const type of foundLinkTypes) {
@@ -702,9 +716,19 @@ const App = () => {
                               </div>
       
                               <div className="flex items-center justify-between" style={{ paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                 <div className="flex items-center gap-2">
-                                    <span className="material-symbols-outlined" style={{ color: '#475569', fontSize: '14px' }}>history</span>
-                                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d in flow</span>
+                                 <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                       <span className="material-symbols-outlined" style={{ color: '#475569', fontSize: '14px' }}>history</span>
+                                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b' }}>{card.days}d in flow</span>
+                                    </div>
+                                    {card.lastInteraction && (
+                                       <div className="flex items-center gap-1" title="Last Message">
+                                          <span className="material-symbols-outlined" style={{ color: '#3b82f6', fontSize: '12px' }}>schedule</span>
+                                          <span style={{ fontSize: '9px', fontWeight: 900, color: '#60a5fa' }}>
+                                             {new Date(card.lastInteraction).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                          </span>
+                                       </div>
+                                    )}
                                  </div>
                                  <div className="flex gap-2">
                                    <select 
@@ -765,6 +789,14 @@ const App = () => {
                           <td style={{ padding: '1.5rem' }}>
                             <p style={{ fontSize: '0.875rem', fontWeight: 900, color: 'white' }}>{card.name}</p>
                             <p style={{ fontSize: '10px', color: '#475569', fontWeight: 700 }}>{card.email}</p>
+                            {card.lastInteraction && (
+                               <div className="flex items-center gap-1" style={{ marginTop: '0.5rem' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '10px', color: '#3b82f6' }}>schedule</span>
+                                  <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: 900 }}>
+                                     {new Date(card.lastInteraction).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                  </span>
+                               </div>
+                            )}
                           </td>
                           <td style={{ padding: '1.5rem' }}>
                             <div className="flex flex-col gap-2">

@@ -172,9 +172,22 @@ const App = () => {
             );
 
             // 2. Extract potential Link Types from email
-            const foundLinkTypes = Object.keys(LINK_CONFIG).filter(type => 
+            const keywordsMap = {
+               'sip': 'Online SIP',
+               'purchase': 'Online Purchase',
+               'stp': 'STP',
+               'switch': 'Switch',
+               'redemption': 'Redemption'
+            };
+            const foundLinkTypesRaw = Object.keys(LINK_CONFIG).filter(type => 
                subject.includes(type.toLowerCase()) || snippet.includes(type.toLowerCase())
             );
+            Object.keys(keywordsMap).forEach(k => {
+               if (subject.match(new RegExp('\\b' + k + '\\b', 'i')) || snippet.match(new RegExp('\\b' + k + '\\b', 'i'))) {
+                  foundLinkTypesRaw.push(keywordsMap[k]);
+               }
+            });
+            const foundLinkTypes = [...new Set(foundLinkTypesRaw)];
 
             // Determine intention context
             const textWindow = subject + " " + snippet;
@@ -296,6 +309,7 @@ const App = () => {
   // Run polling every 3 minutes if authenticated
   useEffect(() => {
     if (isAuthenticated) {
+      checkGmailStatus(); // Scan immediately instead of waiting 3 minutes
       const interval = setInterval(checkGmailStatus, 180000);
       return () => clearInterval(interval);
     }

@@ -252,8 +252,10 @@ const App = () => {
                   const typeInEmail = subject.includes(link.type.toLowerCase()) || snippet.includes(link.type.toLowerCase());
                   if (!typeInEmail) return link;
 
-                  const linkIndex = textWindow.indexOf(link.type.toLowerCase());
-                  const tw = linkIndex >= 0 ? textWindow.substring(Math.max(0, linkIndex - 70), Math.min(textWindow.length, linkIndex + 70)) : textWindow;
+                  // Break email into logical clauses (sentences, commas, or conjunctions) to isolate statuses
+                  const clauses = textWindow.split(/[\n\.,;&|]|\band\b|\bbut\b/i);
+                  const relevantClause = clauses.find(c => c.includes(link.type.toLowerCase())) || textWindow;
+                  const tw = relevantClause;
 
                   const lSent = tw.includes('inform the officer') || tw.includes('ref no');
                   const lAuth = tw.includes('authorised') || tw.includes('authenticated');

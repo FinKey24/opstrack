@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
+import Tesseract from 'tesseract.js';
 
 // Simple Mock Data for v1 Prototype
 const DEMO_CARDS = [
@@ -14,7 +15,12 @@ const COLUMNS = ['New Approval', 'Pending Ops', 'Link Sent', 'Authorised', 'Expi
 const App = () => {
   const [cards, setCards] = useState(() => {
     const saved = localStorage.getItem('opstrack_cards');
-    return saved ? JSON.parse(saved) : [];
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 1, name: 'Major Vikram Singh', email: 'vikram.s@defence.gov.in', status: 'New Approval', days: 1, links: [
+        { type: 'Redemption', status: 'New Approval', refNo: '', expiryTime: null }
+      ]},
+    ];
   });
   
   const [isDrafterOpen, setIsDrafterOpen] = useState(false);
@@ -69,6 +75,9 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [tokenResponse, setTokenResponse] = useState(null);
   const [isPolling, setIsPolling] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = useRef(null);
+  const [scanTarget, setScanTarget] = useState(null); // { cardId, linkIdx }
 
   // --- GMAIL INTEGRATION LOGIC ---
   const CLIENT_ID = '456901579054-gp5socevnrce9a3i2pmgu6m799jpbeo1.apps.googleusercontent.com';
@@ -125,35 +134,58 @@ const App = () => {
         const headers = detail.result.payload.headers;
         const subject = headers.find(h => h.name === 'Subject')?.value.toLowerCase() || '';
         
-        // DETECTION ENGINE
+        // DETECTION ENGINE (MULTI-LINK AWARE)
         setCards(prev => prev.map(card => {
-          let updatedCard = { ...card };
           const nameInSubject = subject.includes(card.name.toLowerCase());
           const nameInSnippet = snippet.includes(card.name.toLowerCase());
           
-          // Match if name is in Subject OR Snippet
           if (!nameInSubject && !nameInSnippet) return card;
 
-          // 1. Link Sent Detection ("Ref No" or "Inform the officer")
-          const isLinkSent = snippet.includes('inform the officer') || snippet.includes('ref no');
-          
-          if (isLinkSent && card.status === 'Pending Ops') {
-            const refMatch = snippet.match(/ref no[:\s]+(\w+)/i);
-            updatedCard.status = 'Link Sent';
-            updatedCard.expiryTime = Date.now() + (48 * 60 * 60 * 1000);
-            if (refMatch) updatedCard.refNo = refMatch[1].toUpperCase();
-            console.log('Match Found: Link Sent for', card.name);
-          }
-          
-          // 2. Authorisation Detection
-          const isAuth = snippet.includes('authorised') || snippet.includes('authenticated');
-          if (isAuth && card.status === 'Link Sent') {
-            updatedCard.status = 'Authorised';
-            updatedCard.expiryTime = null;
-            console.log('Match Found: Authorised for', card.name);
-          }
+          const updatedLinks = card.links.map(link => {
+            const typeInSnippet = snippet.includes(link.type.toLowerCase());
+            if (!typeInSnippet) return link; // Only update if this specific type is mentioned
 
-          return updatedCard;
+            // Get text window around the type keyword (+/- 150 chars)
+            const typeIndex = snippet.indexOf(link.type.toLowerCase());
+            const textWindow = snippet.substring(Math.max(0, typeIndex - 50), Math.min(snippet.length, typeIndex + 200));
+
+            // 1. Link Sent Detection
+            const isLinkSent = textWindow.includes('inform the officer') || textWindow.includes('ref no');
+            if (isLinkSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
+              const refMatch = textWindow.match(/ref no[\.\s:]+([a-z0-9]+)/i);
+              return { 
+                ...link, 
+                status: 'Link Sent', 
+                expiryTime: Date.now() + (48 * 60 * 60 * 1000),
+                refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo
+              };
+            }
+
+            // 2. Authorisation Detection
+            const isAuth = textWindow.includes('authorised') || textWindow.includes('authenticated');
+            if (isAuth && link.status === 'Link Sent') {
+              return { ...link, status: 'Authorised', expiryTime: null };
+            }
+
+            // 3. Rejection Detection
+            const isRejected = textWindow.includes('rejected') || textWindow.includes('failed') || textWindow.includes('invalid');
+            if (isRejected && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
+              return { ...link, status: 'Rejected', expiryTime: null };
+            }
+
+            return link;
+          });
+
+          // Overall Card Status Sync (If all links are Authorised, card is Authorised, etc.)
+          const statuses = updatedLinks.map(l => l.status);
+          let overallStatus = card.status;
+          
+          if (statuses.every(s => s === 'Authorised')) overallStatus = 'Authorised';
+          else if (statuses.some(s => s === 'Rejected')) overallStatus = 'Rejected';
+          else if (statuses.some(s => s === 'Link Sent')) overallStatus = 'Link Sent';
+          else if (statuses.every(s => s === 'Pending Ops')) overallStatus = 'Pending Ops';
+
+          return { ...card, links: updatedLinks, status: overallStatus };
         }));
       }
     } catch (err) {
@@ -177,18 +209,25 @@ const App = () => {
   }, [cards]);
 
   const handleLoadDemoData = () => {
-    if (window.confirm('Load Demo Data? This will overwrite your current board.')) {
+    if (window.confirm('Load Multi-Link Demo Data? This will overwrite your current board.')) {
       const now = Date.now();
       const demoCards = [
-        { id: now + 1, name: 'Capt. Rahul Sharma', email: 'rahul.s@navy.gov.in', type: 'Redemption', status: 'New Approval', days: 0, expiryTime: null },
-        { id: now + 2, name: 'Sqn Ldr. Meera Roy', email: 'meera.r@iaf.nic.in', type: 'Purchase', status: 'Pending Ops', days: 1, expiryTime: null },
-        { id: now + 3, name: 'Col. Rajesh Khanna', email: 'r.khanna@army.mil.in', type: 'Switch', status: 'Link Sent', days: 0, expiryTime: now + (36 * 60 * 60 * 1000) }, // 36h left
-        { id: now + 4, name: 'Brig. Amit Shah', email: 'amit.s@defence.gov.in', type: 'SIP Setup', status: 'Authorised', days: 3, expiryTime: null, refNo: 'TXN99821' },
-        { id: now + 5, name: 'Major General P. Singh', email: 'singh.gen@army.gov.in', type: 'KYC Update', status: 'Expired', days: 5, expiryTime: null },
-        { id: now + 6, name: 'Lt. Col. Anita Desai', email: 'anita.d@army.gov.in', type: 'Redemption', status: 'Link Sent', days: 2, expiryTime: now + (2 * 60 * 60 * 1000) }, // 2h left (Orange Alert)
+        { id: now + 1, name: 'Capt. Rahul Sharma', email: 'rahul.s@navy.gov.in', status: 'Pending Ops', days: 0, links: [
+          { type: 'Redemption', status: 'Pending Ops', refNo: null, expiryTime: null },
+          { type: 'Switch', status: 'New Approval', refNo: null, expiryTime: null }
+        ]},
+        { id: now + 2, name: 'Col. Rajesh Khanna', email: 'r.khanna@army.mil.in', status: 'Link Sent', days: 1, links: [
+          { type: 'Online Purchase', status: 'Link Sent', refNo: 'TXN8821', expiryTime: now + (36 * 60 * 60 * 1000) }
+        ]},
+        { id: now + 3, name: 'Brig. Amit Shah', email: 'amit.s@defence.gov.in', status: 'Authorised', days: 3, links: [
+          { type: 'STP', status: 'Authorised', refNo: 'TXN99821', expiryTime: null }
+        ]},
+        { id: now + 4, name: 'Lt. Col. Anita Desai', email: 'anita.d@army.gov.in', status: 'Link Sent', days: 2, links: [
+          { type: 'Redemption', status: 'Link Sent', refNo: 'TXN_OLD', expiryTime: now + (2 * 60 * 60 * 1000) }
+        ]},
       ];
       setCards(demoCards);
-      alert('Boutique Workflow Intelligence Loaded! ⏳🛡️');
+      alert('Boutique Workflow Intelligence (Multi-Link) Loaded! ⏳🛡️');
     }
   };
 
@@ -201,12 +240,27 @@ const App = () => {
 
   const handleOpenDrafter = (card) => {
     setActiveCard(card);
-    setDraftData([]);
     
-    // Auto-detect Quick Actions based on status
-    if (card.status === 'Expired' || card.status === 'Rejected') {
-      // Pre-fill a "Quick Action" section if needed, or we handle it in the Preview
-      console.log('Preparing Quick Action draft for', card.name);
+    // Pre-fill Drafter with existing links from the card
+    if (card.links && card.links.length > 0) {
+      const initialDraftData = card.links.map(link => {
+        // Find if this link type exists in our config
+        if (LINK_CONFIG[link.type]) {
+          return {
+            type: link.type,
+            // Try to pre-fill the first row with available data like RefNo or Folio if we have it
+            rows: [new Array(LINK_CONFIG[link.type].length).fill('').map((_, i) => {
+              const colName = LINK_CONFIG[link.type][i].name;
+              if (colName === 'Folio Number' || colName === 'Folio') return link.folio || '';
+              return '';
+            })]
+          };
+        }
+        return null;
+      }).filter(Boolean);
+      setDraftData(initialDraftData);
+    } else {
+      setDraftData([]);
     }
     
     setIsDrafterOpen(true);
@@ -266,7 +320,47 @@ const App = () => {
     setDraftData(newData);
   };
 
-  // Status Actions
+  const handleScanScreenshot = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !scanTarget) return;
+
+    setIsScanning(true);
+    try {
+      const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+        logger: m => console.log('Tesseract:', m.status, Math.round(m.progress * 100) + '%')
+      });
+
+      console.log('OCR Output:', text);
+      
+      // Pattern Matching for Folio and Ref No
+      const folioMatch = text.match(/\b\d{9,12}\b/); // 9-12 digit folio
+      const refMatch = text.match(/(TXN[A-Z0-9]+|REF[:\s]+[A-Z0-9]+)/i);
+
+      setCards(prev => prev.map(card => {
+        if (card.id !== scanTarget.cardId) return card;
+        
+        const updatedLinks = [...card.links];
+        const link = updatedLinks[scanTarget.linkIdx];
+        
+        if (folioMatch) link.folio = folioMatch[0];
+        if (refMatch) {
+          const cleanRef = refMatch[0].replace(/REF[:\s]+/i, '').toUpperCase();
+          link.refNo = cleanRef;
+        }
+
+        return { ...card, links: updatedLinks };
+      }));
+      
+      alert(`Scan Complete! ${folioMatch ? 'Found Folio: ' + folioMatch[0] : ''} ${refMatch ? 'Found Ref: ' + refMatch[0] : ''}`);
+    } catch (err) {
+      console.error('OCR Error:', err);
+      alert('Failed to scan screenshot.');
+    } finally {
+      setIsScanning(false);
+      setScanTarget(null);
+    }
+  };
+
   const updateCardStatus = (cardId, newStatus, extraData = {}) => {
     setCards(prev => prev.map(card => 
       card.id === cardId 
@@ -287,15 +381,19 @@ const App = () => {
     
     const hours = Math.floor(difference / (1000 * 60 * 60));
     const minutes = Math.floor((difference / 1000 / 60) % 60);
-    return `${hours}h ${minutes}m left`;
+    
+    if (hours > 24) return `${Math.floor(hours/24)}d ${hours%24}h left`;
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
   };
 
   const getTimerColor = (expiryTime) => {
     if (!expiryTime) return '#64748b';
     const difference = expiryTime - Date.now();
     if (difference <= 0) return '#ef4444';
-    if (difference < (12 * 60 * 60 * 1000)) return '#f59e0b'; // Less than 12h
-    return '#10b981';
+    if (difference < (12 * 60 * 60 * 1000)) return '#f59e0b'; // Orange: <12h
+    if (difference < (24 * 60 * 60 * 1000)) return '#3b82f6'; // Blue: <24h
+    return '#10b981'; // Green: >24h
   };
 
   // Force render update for timer
@@ -307,6 +405,21 @@ const App = () => {
 
   return (
     <div className="app-container">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleScanScreenshot} 
+        style={{ display: 'none' }} 
+        accept="image/*"
+      />
+      
+      {isScanning && (
+        <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 100, background: '#1e293b', padding: '1rem 1.5rem', borderRadius: '1rem', border: '1px solid #3b82f6', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+          <div className="spinner" style={{ width: '20px', height: '20px', border: '3px solid rgba(59,130,246,0.2)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+          <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase' }}>Scanning Screenshot...</span>
+        </div>
+      )}
+
       {/* Sidebar Overlay for Mobile */}
       {isSidebarOpen && <div className="overlay" onClick={() => setIsSidebarOpen(false)}></div>}
       
@@ -468,10 +581,32 @@ const App = () => {
                                </div>
                             </div>
     
-                            <div className="flex items-center gap-2" style={{ marginBottom: '1rem' }}>
-                              <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: '6px' }}>
-                                {card.type}
-                              </span>
+                            <div className="flex flex-wrap gap-2" style={{ marginBottom: '1rem' }}>
+                              {card.links && card.links.length > 0 ? (
+                                card.links.map((link, idx) => (
+                                  <div key={idx} className="flex items-center gap-1" style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)', padding: '2px 6px', borderRadius: '6px' }}>
+                                    <span style={{ color: '#60a5fa', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                      {link.type}
+                                    </span>
+                                    {link.status === 'Authorised' && <span className="material-symbols-outlined" style={{ fontSize: '10px', color: '#10b981' }}>verified</span>}
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setScanTarget({ cardId: card.id, linkIdx: idx });
+                                        fileInputRef.current.click();
+                                      }}
+                                      style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                      title="Scan Screenshot for Folio/Ref"
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>photo_camera</span>
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#60a5fa', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 8px', borderRadius: '6px' }}>
+                                  {card.type}
+                                </span>
+                              )}
                               {card.refNo && (
                                 <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontSize: '9px', fontWeight: 900, padding: '4px 8px', borderRadius: '6px' }}>
                                   #{card.refNo}
@@ -495,21 +630,27 @@ const App = () => {
                                  </select>
 
                                  {card.status === 'Link Sent' ? (
-                                   <button onClick={() => updateCardStatus(card.id, 'Authorised')} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', border: 'none', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   <button onClick={() => updateCardStatus(card.id, 'Authorised')} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', border: 'none', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Mark as Authorised">
                                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check_circle</span>
                                    </button>
-                                 ) : card.status === 'Expired' || card.status === 'Rejected' ? (
+                                 ) : card.status === 'Expired' ? (
                                    <button 
-                                     onClick={() => {
-                                       setActiveCard(card);
-                                       setIsDrafterOpen(true);
-                                     }} 
-                                     style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                     onClick={() => handleOpenDrafter(card)} 
+                                     style={{ height: '32px', padding: '0 12px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 900 }}
                                    >
-                                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>autorenew</span>
+                                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>autorenew</span>
+                                     RETRIGGER
+                                   </button>
+                                 ) : card.status === 'Rejected' ? (
+                                   <button 
+                                     onClick={() => handleOpenDrafter(card)} 
+                                     style={{ height: '32px', padding: '0 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 900 }}
+                                   >
+                                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
+                                     REGENERATE
                                    </button>
                                  ) : (
-                                   <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Open Drafter">
                                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
                                    </button>
                                  )}

@@ -125,70 +125,133 @@ const App = () => {
       });
 
       const messages = response.result.messages || [];
+      const messageDetails = [];
       for (const msg of messages) {
         const detail = await window.gapi.client.gmail.users.messages.get({
           userId: 'me',
           id: msg.id
         });
-
-        const snippet = detail.result.snippet.toLowerCase();
-        const headers = detail.result.payload.headers;
-        const subject = headers.find(h => h.name === 'Subject')?.value.toLowerCase() || '';
-        
-        // DETECTION ENGINE (MULTI-LINK AWARE)
-        setCards(prev => prev.map(card => {
-          const nameInSubject = subject.includes(card.name.toLowerCase());
-          const nameInSnippet = snippet.includes(card.name.toLowerCase());
-          
-          if (!nameInSubject && !nameInSnippet) return card;
-
-          const updatedLinks = card.links.map(link => {
-            const typeInSnippet = snippet.includes(link.type.toLowerCase());
-            if (!typeInSnippet) return link; // Only update if this specific type is mentioned
-
-            // Get text window around the type keyword (+/- 150 chars)
-            const typeIndex = snippet.indexOf(link.type.toLowerCase());
-            const textWindow = snippet.substring(Math.max(0, typeIndex - 50), Math.min(snippet.length, typeIndex + 200));
-
-            // 1. Link Sent Detection
-            const isLinkSent = textWindow.includes('inform the officer') || textWindow.includes('ref no');
-            if (isLinkSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
-              const refMatch = textWindow.match(/ref no[\.\s:]+([a-z0-9]+)/i);
-              return { 
-                ...link, 
-                status: 'Link Sent', 
-                expiryTime: Date.now() + (48 * 60 * 60 * 1000),
-                refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo
-              };
-            }
-
-            // 2. Authorisation Detection
-            const isAuth = textWindow.includes('authorised') || textWindow.includes('authenticated');
-            if (isAuth && link.status === 'Link Sent') {
-              return { ...link, status: 'Authorised', expiryTime: null };
-            }
-
-            // 3. Rejection Detection
-            const isRejected = textWindow.includes('rejected') || textWindow.includes('failed') || textWindow.includes('invalid');
-            if (isRejected && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
-              return { ...link, status: 'Rejected', expiryTime: null };
-            }
-
-            return link;
-          });
-
-          // Overall Card Status Sync (If all links are Authorised, card is Authorised, etc.)
-          const statuses = updatedLinks.map(l => l.status);
-          let overallStatus = card.status;
-          
-          if (statuses.every(s => s === 'Authorised')) overallStatus = 'Authorised';
-          else if (statuses.some(s => s === 'Rejected')) overallStatus = 'Rejected';
-          else if (statuses.some(s => s === 'Link Sent')) overallStatus = 'Link Sent';
-          else if (statuses.every(s => s === 'Pending Ops')) overallStatus = 'Pending Ops';
-
-          return { ...card, links: updatedLinks, status: overallStatus };
-        }));
+        messageDetails.push({ msgId: msg.id, detail });
       }
+
+      setCards(prevCards => {
+         let updatedCards = [...prevCards];
+
+         // Process from oldest to newest if needed, but since we are just updating state iteratively it's fine.
+         // We reverse messageDetails to process chronological (oldest to newest)
+         for (const { msgId, detail } of messageDetails.reverse()) {
+            const snippet = detail.result.snippet.toLowerCase();
+            const headers = detail.result.payload.headers;
+            const subjectOrig = headers.find(h => h.name === 'Subject')?.value || '';
+            const subject = subjectOrig.toLowerCase();
+            
+            // 1. Find matching existing client
+            let matchedCardIdx = updatedCards.findIndex(card => 
+               subject.includes(card.name.toLowerCase()) || snippet.includes(card.name.toLowerCase())
+            );
+
+            // 2. Extract potential Link Types from email
+            const foundLinkTypes = Object.keys(LINK_CONFIG).filter(type => 
+               subject.includes(type.toLowerCase()) || snippet.includes(type.toLowerCase())
+            );
+
+            // Determine intention context
+            const textWindow = subject + " " + snippet;
+            const isLinkSent = textWindow.includes('inform the officer') || textWindow.includes('ref no');
+            const isAuth = textWindow.includes('authorised') || textWindow.includes('authenticated');
+            const isRejected = textWindow.includes('rejected') || textWindow.includes('failed') || textWindow.includes('invalid');
+            const isNewRequest = !isLinkSent && !isAuth && !isRejected; // It's likely a new link being sent to ops
+
+            if (matchedCardIdx === -1) {
+               // BRAND NEW CLIENT AUTO-CREATION
+               if (foundLinkTypes.length > 0 && isNewRequest) {
+                  const cleanSubject = subjectOrig.replace(/^(Re|Fwd|FW|RE):\s*/i, '').trim() || 'New Auto-Captured Client';
+                  
+                  // Prevent duplicates in same loop
+                  const existingByName = updatedCards.findIndex(c => c.name.toLowerCase() === cleanSubject.toLowerCase());
+                  if (existingByName === -1) {
+                     const newCard = {
+                       id: msgId,
+                       name: cleanSubject,
+                       email: 'Auto-Captured',
+                       status: 'Pending Ops',
+                       days: 0,
+                       links: foundLinkTypes.map(type => ({
+                           type,
+                           status: 'Pending Ops',
+                           refNo: null,
+                           expiryTime: null
+                       }))
+                     };
+                     updatedCards.push(newCard);
+                  }
+               }
+            } else {
+               // EXISTING CLIENT
+               let card = { ...updatedCards[matchedCardIdx] };
+               let cardLinks = [...(card.links || [])];
+
+               // Append new links if requested
+               for (const type of foundLinkTypes) {
+                  // Only add if there is NO active link of this exact type
+                  const hasActive = cardLinks.some(l => l.type.toLowerCase() === type.toLowerCase() && l.status !== 'Authorised' && l.status !== 'Rejected' && l.status !== 'Expired');
+                  
+                  if (!hasActive && isNewRequest) {
+                     cardLinks.push({
+                         type,
+                         status: 'Pending Ops',
+                         refNo: null,
+                         expiryTime: null
+                     });
+                  }
+               }
+
+               // Normal status update loop across all links
+               cardLinks = cardLinks.map(link => {
+                  const typeInEmail = subject.includes(link.type.toLowerCase()) || snippet.includes(link.type.toLowerCase());
+                  if (!typeInEmail) return link;
+
+                  const linkIndex = snippet.indexOf(link.type.toLowerCase());
+                  const tw = linkIndex >= 0 ? snippet.substring(Math.max(0, linkIndex - 50), Math.min(snippet.length, linkIndex + 200)) : textWindow;
+
+                  const lSent = tw.includes('inform the officer') || tw.includes('ref no');
+                  const lAuth = tw.includes('authorised') || tw.includes('authenticated');
+                  const lRej = tw.includes('rejected') || tw.includes('failed') || tw.includes('invalid');
+
+                  if (lSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
+                     const refMatch = tw.match(/ref no[\.\s:]+([a-z0-9]+)/i);
+                     return { ...link, status: 'Link Sent', expiryTime: Date.now() + (48*3600*1000), refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo };
+                  }
+                  if (lAuth && (link.status === 'Link Sent' || link.status === 'Pending Ops')) {
+                     return { ...link, status: 'Authorised', expiryTime: null };
+                  }
+                  if (lRej && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
+                     return { ...link, status: 'Rejected', expiryTime: null };
+                  }
+
+                  return link;
+               });
+
+               // Overall status sync
+               const statuses = cardLinks.map(l => l.status);
+               let overallStatus = card.status;
+               if (statuses.length > 0) {
+                   if (statuses.every(s => s === 'Authorised')) overallStatus = 'Authorised';
+                   else if (statuses.some(s => s === 'Rejected')) overallStatus = 'Rejected';
+                   else if (statuses.some(s => s === 'Link Sent')) overallStatus = 'Link Sent';
+                   else if (statuses.some(s => s === 'Pending Ops')) overallStatus = 'Pending Ops';
+                   else if (statuses.some(s => s === 'New Approval')) overallStatus = 'New Approval';
+                   else overallStatus = statuses[0];
+               }
+
+               card.links = cardLinks;
+               card.status = overallStatus;
+               updatedCards[matchedCardIdx] = card;
+            }
+         }
+
+         return updatedCards;
+      });
     } catch (err) {
       console.error('Gmail Polling Error:', err);
     } finally {

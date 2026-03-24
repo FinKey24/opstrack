@@ -122,28 +122,35 @@ const App = () => {
         });
 
         const snippet = detail.result.snippet.toLowerCase();
+        const headers = detail.result.payload.headers;
+        const subject = headers.find(h => h.name === 'Subject')?.value.toLowerCase() || '';
         
         // DETECTION ENGINE
         setCards(prev => prev.map(card => {
           let updatedCard = { ...card };
-          const nameMatch = snippet.includes(card.name.toLowerCase());
+          const nameInSubject = subject.includes(card.name.toLowerCase());
+          const nameInSnippet = snippet.includes(card.name.toLowerCase());
           
-          if (!nameMatch) return card; // Ignore if name doesn't match
+          // Match if name is in Subject OR Snippet
+          if (!nameInSubject && !nameInSnippet) return card;
 
           // 1. Link Sent Detection ("Ref No" or "Inform the officer")
-          if ((snippet.includes('inform the officer') || snippet.includes('ref no')) && card.status === 'Pending Ops') {
+          const isLinkSent = snippet.includes('inform the officer') || snippet.includes('ref no');
+          
+          if (isLinkSent && card.status === 'Pending Ops') {
             const refMatch = snippet.match(/ref no[:\s]+(\w+)/i);
             updatedCard.status = 'Link Sent';
             updatedCard.expiryTime = Date.now() + (48 * 60 * 60 * 1000);
             if (refMatch) updatedCard.refNo = refMatch[1].toUpperCase();
-            console.log('Detected Link Sent for:', card.name);
+            console.log('Match Found: Link Sent for', card.name);
           }
           
-          // 2. Authorisation Detection ("Authorised" or "Authenticated")
-          if ((snippet.includes('authorised') || snippet.includes('authenticated')) && card.status === 'Link Sent') {
+          // 2. Authorisation Detection
+          const isAuth = snippet.includes('authorised') || snippet.includes('authenticated');
+          if (isAuth && card.status === 'Link Sent') {
             updatedCard.status = 'Authorised';
             updatedCard.expiryTime = null;
-            console.log('Detected Authorisation for:', card.name);
+            console.log('Match Found: Authorised for', card.name);
           }
 
           return updatedCard;

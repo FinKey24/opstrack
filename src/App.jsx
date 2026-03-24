@@ -78,7 +78,7 @@ const App = () => {
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef(null);
   const [scanTarget, setScanTarget] = useState(null); // { cardId, linkIdx }
-  const [viewMode, setViewMode] = useState('ledger'); // 'kanban' or 'ledger'
+  const viewMode = 'ledger'; // Locked to client-centric view
 
   // --- GMAIL INTEGRATION LOGIC ---
   const CLIENT_ID = '456901579054-gp5socevnrce9a3i2pmgu6m799jpbeo1.apps.googleusercontent.com';
@@ -604,21 +604,6 @@ const App = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4" style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <button 
-              onClick={() => setViewMode('ledger')}
-              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', fontSize: '10px', fontWeight: 900, cursor: 'pointer', transition: 'all 0.2s', backgroundColor: viewMode === 'ledger' ? 'rgba(59,130,246,0.1)' : 'transparent', color: viewMode === 'ledger' ? '#60a5fa' : '#64748b' }}
-            >
-              LEDGER
-            </button>
-            <button 
-              onClick={() => setViewMode('kanban')}
-              style={{ padding: '6px 16px', borderRadius: '8px', border: 'none', fontSize: '10px', fontWeight: 900, cursor: 'pointer', transition: 'all 0.2s', backgroundColor: viewMode === 'kanban' ? 'rgba(59,130,246,0.1)' : 'transparent', color: viewMode === 'kanban' ? '#60a5fa' : '#64748b' }}
-            >
-              KANBAN
-            </button>
-          </div>
-
           <div className="flex items-center gap-6">
             <div className="flex items-center" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '0.75rem', padding: '0.5rem 1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
               <span className="material-symbols-outlined" style={{ color: '#94a3b8', fontSize: '1.125rem', marginRight: '0.5rem' }}>search</span>
@@ -635,7 +620,7 @@ const App = () => {
           <section style={{ marginBottom: '2.5rem' }}>
             <div className="flex items-center justify-between" style={{ marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'white' }}>
-                {viewMode === 'kanban' ? 'Live Flow Monitor' : 'Systematic Transaction Ledger'}
+                Systematic Transaction Ledger
               </h3>
               <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569' }}>
                 {cards.length} ACTIVE CLIENTS
@@ -768,39 +753,48 @@ const App = () => {
             ) : (
               /* LEDGER VIEW (PHASE 6) */
               <div style={{ backgroundColor: 'rgba(255,255,255,0.01)', borderRadius: '1.5rem', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <th style={{ padding: '1rem 1.5rem', fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Client Details</th>
-                      <th style={{ padding: '1rem 1.5rem', fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Active Transactions</th>
-                      <th style={{ padding: '1rem 1.5rem', fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem', padding: '0.5rem' }}>
                     {cards.length === 0 ? (
-                      <tr>
-                        <td colSpan="3" style={{ padding: '4rem', textAlign: 'center', opacity: 0.3 }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '48px' }}>folder_open</span>
-                          <p style={{ fontSize: '12px', marginTop: '1rem' }}>No active clients in the ledger</p>
-                        </td>
-                      </tr>
+                      <div style={{ padding: '4rem', textAlign: 'center', opacity: 0.3, gridColumn: '1 / -1' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '48px' }}>folder_open</span>
+                        <p style={{ fontSize: '12px', marginTop: '1rem' }}>No active clients</p>
+                      </div>
                     ) : (
                       cards.map(card => (
-                        <tr key={card.id || card.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }} className="ledger-row">
-                          <td style={{ padding: '1.5rem' }}>
-                            <p style={{ fontSize: '0.875rem', fontWeight: 900, color: 'white' }}>{card.name}</p>
-                            <p style={{ fontSize: '10px', color: '#475569', fontWeight: 700 }}>{card.email}</p>
-                            {card.lastInteraction && (
-                               <div className="flex items-center gap-1" style={{ marginTop: '0.5rem' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '10px', color: '#3b82f6' }}>schedule</span>
-                                  <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: 900 }}>
-                                     {new Date(card.lastInteraction).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                  </span>
-                               </div>
-                            )}
-                          </td>
-                          <td style={{ padding: '1.5rem' }}>
-                            <div className="flex flex-col gap-2">
+                        <div key={card.id || card.email} className="card" style={{ display: 'flex', flexDirection: 'column', background: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '1.5rem', padding: '1.5rem' }}>
+                           {/* Card Header: Client Info */}
+                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                              <div>
+                                 <p style={{ fontSize: '1.125rem', fontWeight: 900, color: 'white', margin: 0 }}>{card.name}</p>
+                                 <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, marginTop: '4px' }}>{card.email}</p>
+                                 {card.lastInteraction && (
+                                    <div className="flex items-center gap-1" style={{ marginTop: '0.5rem' }}>
+                                       <span className="material-symbols-outlined" style={{ fontSize: '10px', color: '#3b82f6' }}>schedule</span>
+                                       <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: 900 }}>
+                                          {new Date(card.lastInteraction).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                       </span>
+                                    </div>
+                                 )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                 {card.status === 'Expired' && (
+                                    <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: 'none', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="RETRIGGER">
+                                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>autorenew</span>
+                                    </button>
+                                 )}
+                                 {card.status === 'Rejected' && (
+                                    <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="REGENERATE">
+                                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
+                                    </button>
+                                 )}
+                                 <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="EMAIL">
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
+                                 </button>
+                              </div>
+                           </div>
+
+                           {/* Card Body: Active Links & History */}
+                           <div className="flex flex-col gap-2" style={{ flex: 1 }}>
                               {card.links && (() => {
                                  const activeLinks = card.links.filter(link => {
                                     if (link.status !== 'Authorised' && link.status !== 'Rejected') return true;
@@ -812,43 +806,44 @@ const App = () => {
 
                                  return (
                                     <>
-                                       {activeLinks.map((link, idx) => {
+                                       {activeLinks.length > 0 ? activeLinks.map((link, idx) => {
                                           const timeLeft = calculateTimeLeft(link.expiryTime);
                                           return (
-                                  <div key={idx} className="flex items-center justify-between" style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <div className="flex items-center gap-3">
-                                      <span style={{ fontSize: '10px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', width: '80px' }}>{link.type}</span>
-                                      
-                                      <div className="flex items-center gap-2">
-                                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 
-                                          link.status === 'Authorised' ? '#10b981' : 
-                                          link.status === 'Link Sent' ? '#3b82f6' : 
-                                          link.status === 'Rejected' ? '#ef4444' : '#94a3b8' 
-                                        }}></div>
-                                        <span style={{ fontSize: '10px', fontWeight: 900, color: '#cbd5e1' }}>{link.status}</span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                      {link.expiryTime && (
-                                        <span style={{ fontSize: '9px', fontWeight: 800, color: getTimerColor(link.expiryTime) }}>{timeLeft}</span>
-                                      )}
-                                      {link.refNo && (
-                                        <span style={{ fontSize: '9px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>#{link.refNo}</span>
-                                      )}
-                                      <button 
-                                        onClick={() => {
-                                          setScanTarget({ cardId: card.id, linkIdx: idx });
-                                          fileInputRef.current.click();
-                                        }}
-                                        style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer' }}
-                                      >
-                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>photo_camera</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                )
-                                       })}
+                                             <div key={idx} className="flex items-center justify-between" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                <div className="flex items-center gap-3">
+                                                   <span style={{ fontSize: '10px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', width: '70px' }}>{link.type}</span>
+                                                   <div className="flex items-center gap-1.5">
+                                                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 
+                                                         link.status === 'Authorised' ? '#10b981' : 
+                                                         link.status === 'Link Sent' ? '#3b82f6' : 
+                                                         link.status === 'Rejected' ? '#ef4444' : '#94a3b8' 
+                                                      }}></div>
+                                                      <span style={{ fontSize: '10px', fontWeight: 900, color: '#cbd5e1' }}>{link.status}</span>
+                                                   </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                   {link.expiryTime && (
+                                                      <span style={{ fontSize: '9px', fontWeight: 800, color: getTimerColor(link.expiryTime) }}>{timeLeft}</span>
+                                                   )}
+                                                   {link.refNo && (
+                                                      <span style={{ fontSize: '9px', fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>#{link.refNo}</span>
+                                                   )}
+                                                   <button 
+                                                      onClick={() => {
+                                                         setScanTarget({ cardId: card.id, linkIdx: idx });
+                                                         fileInputRef.current.click();
+                                                      }}
+                                                      style={{ background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', padding: 0 }}
+                                                      title="Scan Reference"
+                                                   >
+                                                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>photo_camera</span>
+                                                   </button>
+                                                </div>
+                                             </div>
+                                          )
+                                       }) : (
+                                          <div style={{ fontSize: '10px', color: '#475569', fontStyle: 'italic', padding: '0.5rem 0', fontWeight: 700 }}>No active requests</div>
+                                       )}
 
                                        {archivedLinks.length > 0 && (
                                           <button 
@@ -856,7 +851,7 @@ const App = () => {
                                                 const historyText = archivedLinks.map(l => `${l.type} - ${l.status} on ${new Date(l.completedAt || card.completedAt || Date.now()).toLocaleDateString()}`).join('\n');
                                                 alert(`Archived History for ${card.name}:\n\n${historyText}`);
                                              }}
-                                             style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '9px', fontWeight: 900, padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.5rem' }}
+                                             style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '9px', fontWeight: 900, padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.75rem' }}
                                              title="View past authorized or rejected transactions"
                                           >
                                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>history</span>
@@ -866,26 +861,11 @@ const App = () => {
                                     </>
                                  );
                               })()}
-                            </div>
-                          </td>
-                          <td style={{ padding: '1.5rem', textAlign: 'right' }}>
-                            <div className="flex justify-end gap-2">
-                              {card.status === 'Expired' && (
-                                <button onClick={() => handleOpenDrafter(card)} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: 'none', color: '#f59e0b', cursor: 'pointer', fontSize: '10px', fontWeight: 900 }}>RETRIGGER</button>
-                              )}
-                              {card.status === 'Rejected' && (
-                                <button onClick={() => handleOpenDrafter(card)} style={{ height: '32px', padding: '0 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '10px', fontWeight: 900 }}>REGENERATE</button>
-                              )}
-                              <button onClick={() => handleOpenDrafter(card)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>mail</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                           </div>
+                        </div>
                       ))
                     )}
-                  </tbody>
-                </table>
+                </div>
               </div>
             )}
           </section>

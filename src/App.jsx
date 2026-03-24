@@ -93,6 +93,19 @@ const App = () => {
         await window.gapi.client.init({
           discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'],
         });
+
+        // Restore token if exists
+        const savedToken = localStorage.getItem('gmailToken');
+        if (savedToken) {
+           try {
+              const parsedToken = JSON.parse(savedToken);
+              window.gapi.client.setToken(parsedToken);
+              setTokenResponse(parsedToken);
+              setIsAuthenticated(true);
+           } catch (e) {
+              localStorage.removeItem('gmailToken');
+           }
+        }
       });
     };
     document.body.appendChild(script);
@@ -106,6 +119,7 @@ const App = () => {
         if (response.error !== undefined) throw response;
         setTokenResponse(response);
         setIsAuthenticated(true);
+        localStorage.setItem('gmailToken', JSON.stringify(response));
         alert('Gmail Connected! Live Automation is now ACTIVE. ⚡🎯');
         checkGmailStatus(); // Initial scan
       },
@@ -268,6 +282,12 @@ const App = () => {
       });
     } catch (err) {
       console.error('Gmail Polling Error:', err);
+      if (err.status === 401 || err.status === 403) {
+         setIsAuthenticated(false);
+         setTokenResponse(null);
+         localStorage.removeItem('gmailToken');
+         console.warn('Gmail Session Expired. Please reconnect.');
+      }
     } finally {
       setIsPolling(false);
     }

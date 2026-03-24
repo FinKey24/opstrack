@@ -126,7 +126,10 @@ const App = () => {
         // DETECTION ENGINE
         setCards(prev => prev.map(card => {
           let updatedCard = { ...card };
+          const nameMatch = snippet.includes(card.name.toLowerCase());
           
+          if (!nameMatch) return card; // Ignore if name doesn't match
+
           // 1. Link Sent Detection ("Ref No" or "Inform the officer")
           if ((snippet.includes('inform the officer') || snippet.includes('ref no')) && card.status === 'Pending Ops') {
             const refMatch = snippet.match(/ref no[:\s]+(\w+)/i);

@@ -237,10 +237,10 @@ const App = () => {
                      return { ...link, status: 'Link Sent', expiryTime: Date.now() + (48*3600*1000), refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo };
                   }
                   if (lAuth && (link.status === 'Link Sent' || link.status === 'Pending Ops')) {
-                     return { ...link, status: 'Authorised', expiryTime: null };
+                     return { ...link, status: 'Authorised', expiryTime: null, completedAt: link.completedAt || msgTime };
                   }
                   if (lRej && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
-                     return { ...link, status: 'Rejected', expiryTime: null };
+                     return { ...link, status: 'Rejected', expiryTime: null, completedAt: link.completedAt || msgTime };
                   }
 
                   return link;
@@ -445,6 +445,7 @@ const App = () => {
         ? { 
             ...card, 
             status: newStatus, 
+            completedAt: newStatus === 'Authorised' || newStatus === 'Rejected' ? Date.now() : null,
             expiryTime: newStatus === 'Link Sent' ? Date.now() + (48 * 60 * 60 * 1000) : null,
             ...extraData 
           } 
@@ -800,9 +801,20 @@ const App = () => {
                           </td>
                           <td style={{ padding: '1.5rem' }}>
                             <div className="flex flex-col gap-2">
-                              {card.links && card.links.map((link, idx) => {
-                                const timeLeft = calculateTimeLeft(link.expiryTime);
-                                return (
+                              {card.links && (() => {
+                                 const activeLinks = card.links.filter(link => {
+                                    if (link.status !== 'Authorised' && link.status !== 'Rejected') return true;
+                                    const completedTime = link.completedAt || card.completedAt || null;
+                                    if (!completedTime) return true; // Keep visible if we don't know the exact time
+                                    return (Date.now() - completedTime) <= 24 * 60 * 60 * 1000;
+                                 });
+                                 const archivedLinks = card.links.filter(link => !activeLinks.includes(link));
+
+                                 return (
+                                    <>
+                                       {activeLinks.map((link, idx) => {
+                                          const timeLeft = calculateTimeLeft(link.expiryTime);
+                                          return (
                                   <div key={idx} className="flex items-center justify-between" style={{ padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     <div className="flex items-center gap-3">
                                       <span style={{ fontSize: '10px', fontWeight: 900, color: '#60a5fa', textTransform: 'uppercase', width: '80px' }}>{link.type}</span>
@@ -836,7 +848,24 @@ const App = () => {
                                     </div>
                                   </div>
                                 )
-                              })}
+                                       })}
+
+                                       {archivedLinks.length > 0 && (
+                                          <button 
+                                             onClick={() => {
+                                                const historyText = archivedLinks.map(l => `${l.type} - ${l.status} on ${new Date(l.completedAt || card.completedAt || Date.now()).toLocaleDateString()}`).join('\n');
+                                                alert(`Archived History for ${card.name}:\n\n${historyText}`);
+                                             }}
+                                             style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '9px', fontWeight: 900, padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.5rem' }}
+                                             title="View past authorized or rejected transactions"
+                                          >
+                                             <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>history</span>
+                                             VIEW {archivedLinks.length} ARCHIVED RECORD(S)
+                                          </button>
+                                       )}
+                                    </>
+                                 );
+                              })()}
                             </div>
                           </td>
                           <td style={{ padding: '1.5rem', textAlign: 'right' }}>

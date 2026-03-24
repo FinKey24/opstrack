@@ -234,10 +234,10 @@ const App = () => {
 
                // Append new links if requested
                for (const type of foundLinkTypes) {
-                  // Only add if there is NO active link of this exact type
-                  const hasActive = cardLinks.some(l => l.type.toLowerCase() === type.toLowerCase() && l.status !== 'Authorised' && l.status !== 'Rejected' && l.status !== 'Expired');
+                  // Only add if there is NO link of this exact type created/completed in the last 24 hours
+                  const hasRecent = cardLinks.some(l => l.type.toLowerCase() === type.toLowerCase() && (!l.completedAt || Date.now() - l.completedAt < 24 * 60 * 60 * 1000));
                   
-                  if (!hasActive && isNewRequest) {
+                  if (!hasRecent && isNewRequest) {
                      cardLinks.push({
                          type,
                          status: 'Pending Ops',
@@ -252,22 +252,22 @@ const App = () => {
                   const typeInEmail = subject.includes(link.type.toLowerCase()) || snippet.includes(link.type.toLowerCase());
                   if (!typeInEmail) return link;
 
-                  const linkIndex = snippet.indexOf(link.type.toLowerCase());
-                  const tw = linkIndex >= 0 ? snippet.substring(Math.max(0, linkIndex - 50), Math.min(snippet.length, linkIndex + 200)) : textWindow;
+                  const linkIndex = textWindow.indexOf(link.type.toLowerCase());
+                  const tw = linkIndex >= 0 ? textWindow.substring(Math.max(0, linkIndex - 70), Math.min(textWindow.length, linkIndex + 70)) : textWindow;
 
                   const lSent = tw.includes('inform the officer') || tw.includes('ref no');
                   const lAuth = tw.includes('authorised') || tw.includes('authenticated');
                   const lRej = tw.includes('rejected') || tw.includes('failed') || tw.includes('invalid');
 
-                  if (lSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
-                     const refMatch = tw.match(/ref no[\.\s:]+([a-z0-9]+)/i);
-                     return { ...link, status: 'Link Sent', expiryTime: Date.now() + (48*3600*1000), refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo };
+                  if (lRej && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
+                     return { ...link, status: 'Rejected', expiryTime: null, completedAt: link.completedAt || msgTime };
                   }
                   if (lAuth && (link.status === 'Link Sent' || link.status === 'Pending Ops')) {
                      return { ...link, status: 'Authorised', expiryTime: null, completedAt: link.completedAt || msgTime };
                   }
-                  if (lRej && (link.status === 'Pending Ops' || link.status === 'Link Sent')) {
-                     return { ...link, status: 'Rejected', expiryTime: null, completedAt: link.completedAt || msgTime };
+                  if (lSent && (link.status === 'Pending Ops' || link.status === 'New Approval')) {
+                     const refMatch = tw.match(/ref no[\.\s:]+([a-z0-9]+)/i);
+                     return { ...link, status: 'Link Sent', expiryTime: Date.now() + (48*3600*1000), refNo: refMatch ? refMatch[1].toUpperCase() : link.refNo };
                   }
 
                   return link;
@@ -306,11 +306,11 @@ const App = () => {
     }
   };
 
-  // Run polling every 3 minutes if authenticated
+  // Run polling every 15 seconds if authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      checkGmailStatus(); // Scan immediately instead of waiting 3 minutes
-      const interval = setInterval(checkGmailStatus, 180000);
+      checkGmailStatus(); // Scan immediately
+      const interval = setInterval(checkGmailStatus, 15000); // 15 seconds
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, tokenResponse]);
@@ -639,6 +639,9 @@ const App = () => {
           </div>
 
           <div className="flex items-center gap-6">
+            <button onClick={checkGmailStatus} title="Force Sync Now" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.75rem', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa', cursor: 'pointer', transition: 'all 0.2s', opacity: isPolling ? 0.7 : 1 }}>
+               <span className="material-symbols-outlined" style={{ animation: isPolling ? 'spin 1s linear infinite' : 'none' }}>sync</span>
+            </button>
             <div className="flex items-center" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '0.75rem', padding: '0.5rem 1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
               <span className="material-symbols-outlined" style={{ color: '#94a3b8', fontSize: '1.125rem', marginRight: '0.5rem' }}>search</span>
               <input type="text" placeholder="Search Client ID..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.75rem', color: 'white', width: '12rem' }} />
